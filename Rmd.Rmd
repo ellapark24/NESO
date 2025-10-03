@@ -32,21 +32,29 @@ data <- data %>%
     Hour = hour(Local_DateTime)  # Extract hour
   )
 
-
-# Average Temperature between 3 and 6pm
+# --- TO calculation (avg temp 3–6pm) ---
 TO_data <- data %>%
   filter(Hour >= 15 & Hour <= 18) %>%
   group_by(Date) %>%
-  summarise(TO = mean(temp_merra1, na.rm = TRUE))%>%
-  ungroup()
+  summarise(TO = mean(temp_merra1, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(Date)
 
+# --- TE calculation (recursive) ---
+TE_data <- TO_data %>%
+  mutate(TE = NA_real_)
+
+# Initial condition: 1 Nov 1991 = 11.37 °C
+TE_data$TE[1] <- 11.37  
+
+for (i in 2:nrow(TE_data)) {
+  TE_data$TE[i] <- mean(c(TE_data$TO[i], TE_data$TE[i-1]), na.rm = TRUE)
+}
+
+# Join TO and TE back into main dataset
 data <- data %>%
-  select(-Hour)
-
-
-data <- data %>%
-  left_join(TO_data, by = "Date")
-
+  select(-Hour) %>%
+  left_join(TE_data, by = "Date")
 
 # Define the months you want to keep
 desired_months <- c(11, 12, 1, 2, 3)
@@ -55,9 +63,6 @@ desired_months <- c(11, 12, 1, 2, 3)
 filtered_data <- data[data$Month %in% desired_months & data$Year != 2015, ]
 
 filtered_data <- filtered_data %>%
-  mutate(
-    Date = as.Date(dmy_hm(`Local Time`))  # Extract full date
-  ) %>%
   group_by(Date) %>%
   summarise(
     across(where(is.numeric), mean, na.rm = TRUE)
