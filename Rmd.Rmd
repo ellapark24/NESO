@@ -24,13 +24,29 @@ data <- read_csv("20161213_uk_wind_solar_demand_temperature_SCS2.csv")
 
 data <- data %>%
   mutate(
-    # First, convert the character string to a datetime object
     Local_DateTime = dmy_hm(`Local Time`),
-    # Then, use lubridate functions to extract components
     Month = month(Local_DateTime),
-    WeekdayNum = wday(Local_DateTime) - 1, # wday is 1-based (1=Sun), so subtract 1 for 0-based
-    Year = year(Local_DateTime)
+    WeekdayNum = wday(Local_DateTime) - 1,
+    Year = year(Local_DateTime),
+    Date = as.Date(Local_DateTime),
+    Hour = hour(Local_DateTime)  # Extract hour
   )
+
+
+# Average Temperature between 3 and 6pm
+TO_data <- data %>%
+  filter(Hour >= 15 & Hour <= 18) %>%
+  group_by(Date) %>%
+  summarise(TO = mean(temp_merra1, na.rm = TRUE))%>%
+  ungroup()
+
+data <- data %>%
+  select(-Hour)
+
+
+data <- data %>%
+  left_join(TO_data, by = "Date")
+
 
 # Define the months you want to keep
 desired_months <- c(11, 12, 1, 2, 3)
@@ -47,42 +63,46 @@ filtered_data <- filtered_data %>%
     across(where(is.numeric), mean, na.rm = TRUE)
   ) %>%
   ungroup()
-
-
 ```
+
 ```{r eda, echo = FALSE}
+
 # Wind vs demand
-wind_plot <- ggplot(demand, aes(x=wind, y=demand_gross)) +
+wind_plot <- ggplot(filtered_data, aes(x=wind_merra1, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(5)[4]) +
   geom_smooth(method="lm", color="red") +
   labs(title="Peak Demand vs Wind Capacity", x="Wind Capacity Factor", y="Peak Demand (MW)") +
   theme_bw()
 
 # Solar vs demand
-solar_plot <- ggplot(demand, aes(x=solar_S, y=demand_gross)) +
+solar_plot <- ggplot(filtered_data, aes(x=solar_sarah, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(5)[5]) +
   geom_smooth(method="lm", color="red") +
   labs(title="Peak Demand vs Solar Capacity", x="Solar Capacity Factor", y="Peak Demand (MW)") +
   theme_bw()
 
 # Temp vs demand- shows negative correlation
-temp_plot <- ggplot(demand, aes(x=temp, y=demand_gross)) +
+temp_plot <- ggplot(filtered_data, aes(x=temp_merra1, y=demand_gross)) +
    geom_point(alpha=0.5, color=viridis(9)[8]) +
    geom_smooth(method="lm", color="red") +
    labs(title="Peak Demand vs Temperature", x="Temperature (°C)", y="Peak Demand (MW)") +
    theme_bw()
 
 # TE vs demand- shows negative correlation
-te_plot <- ggplot(demand, aes(x=TE, y=demand_gross)) +
+to_plot <- ggplot(filtered_data, aes(x=TO, y=demand_gross)) +
    geom_point(alpha=0.5, color=viridis(9)[4]) +
    geom_smooth(method="lm", color="red") +
    labs(title="Peak Demand vs TE", x="Temperature (°C)", y="Peak Demand (MW)") +
    theme_bw()
 
 # Start_Year vs demand- shows negative correlation
-year_plot <- ggplot(demand, aes(x=start_year, y=demand_gross)) +
+year_plot <- ggplot(filtered_data, aes(x=Year, y=demand_gross)) +
    geom_point(alpha=0.5, color=viridis(5)[1]) +
    geom_smooth(method="lm", color="red") +
    labs(title="Peak Demand vs Winter Start Year", x="Year", y="Peak Demand (MW)") +
    theme_bw()
+```
+
+```{r demand_scatters_show, warning = FALSE, echo=FALSE, out.width="100%", cache = FALSE, caption = "Plotting peak demand against explanatory variables."}
+suppressWarnings(grid.arrange(wind_plot, solar_plot, temp_plot, to_plot, year_plot, ncol = 2))
 ```
