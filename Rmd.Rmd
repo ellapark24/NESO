@@ -1,6 +1,6 @@
 ---
 title: "Assignment 1"
-author: "Ella Park, Rosie Crookes"
+author: "Ella Park, Rosie Crookes, Kieran Marguerie de Rotrou"
 date: "`r Sys.Date()`"
 output: html_document
 ---
