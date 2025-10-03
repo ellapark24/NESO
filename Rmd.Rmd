@@ -19,29 +19,34 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r data setup}
-library(tidyverse)
 
 data <- read_csv("20161213_uk_wind_solar_demand_temperature_SCS2.csv")
 
-# Convert the 'Local Time' column to POSIXlt objects
-datetime_objs <- strptime(data$`Local Time`, format = "%d/%m/%Y %H:%M")
-
-
-# Extract month (add 1 since months are 0-based)
-data$Month <- datetime_objs$mon + 1
-
-
-# Extract weekday as number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
-data$WeekdayNum <- datetime_objs$wday
-
-# Or extract weekday name
-data$WeekdayName <- weekdays(datetime_objs)
+data <- data %>%
+  mutate(
+    # First, convert the character string to a datetime object
+    Local_DateTime = dmy_hm(`Local Time`),
+    # Then, use lubridate functions to extract components
+    Month = month(Local_DateTime),
+    WeekdayNum = wday(Local_DateTime) - 1, # wday is 1-based (1=Sun), so subtract 1 for 0-based
+    Year = year(Local_DateTime)
+  )
 
 # Define the months you want to keep
 desired_months <- c(11, 12, 1, 2, 3)
 
 # Filter rows where Month is in desired_months
-filtered_data <- data[data$Month %in% desired_months, ]
+filtered_data <- data[data$Month %in% desired_months & data$Year != 2015, ]
 
-view(filtered_data)
+filtered_data <- filtered_data %>%
+  mutate(
+    Date = as.Date(dmy_hm(`Local Time`))  # Extract full date
+  ) %>%
+  group_by(Date) %>%
+  summarise(
+    across(where(is.numeric), mean, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+
 ```
