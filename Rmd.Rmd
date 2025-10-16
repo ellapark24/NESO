@@ -1,26 +1,46 @@
 ---
-title: "Assignment 1"
+title: "Modelling Avergae Electricity Demand in Great Britain"
 author: "Ella Park, Rosie Crookes, Kieran Marguerie de Rotrou"
-date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document:
+    number_sections: no
+  pdf_document:
+    number_sections: no
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{#1}}
+  - \newcommand{\mat}[1]{\begin{bmatrix}#1\end{bmatrix}}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# Modify this setup code chunk to set options
+# or add extra packages etc if needed.
+# See the project instructions for more details
+# on what code to show, and where/how.
+
+# Set default code chunk options
+knitr::opts_chunk$set(
+  echo = TRUE,
+  eval = TRUE
+)
+
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(patchwork))
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(gridExtra))
+
+theme_set(theme_bw())
+# To give the same random number sequence every time the document is knited,
+# making it easier to discuss the specific numbers in the text:
+set.seed(12345L)
 ```
 
-## R Markdown
+```{r code=readLines("code.R"), eval=TRUE, echo=FALSE, results='hide', include=FALSE}
+# Do not change this code chunk
+# Load function definitions
+source("code.R")
+```
 
-Testing
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r data setup, warning = FALSE}
-library(tidyverse)
-data <- read_csv("20161213_uk_wind_solar_demand_temperature_SCS2.csv")
-
+# Executive Summary
 data <- data %>%
   mutate(
     Local_DateTime = dmy_hm(`Local Time`),
@@ -34,84 +54,78 @@ data <- data %>%
     DSN = as.numeric(Date - winter_start)
   )
 
-# --- TO calculation (avg temp 3–6pm) ---
-TO_data <- data %>%
-  filter(Hour >= 15 & Hour <= 18) %>%
-  group_by(Date) %>%
-  summarise(TO = mean(temp_merra1, na.rm = TRUE)) %>%
-  ungroup() %>%
-  arrange(Date)
+Add this at the end once we have our results 
 
-# --- TE calculation (recursive) ---
-TE_data <- TO_data %>%
-  mutate(TE = NA_real_)
+# Method and Approach
 
-# Initial condition: 1 Nov 1991 = 11.37 °C
-TE_data$TE[1] <- 11.37  
+The main aim of this report was to enable NESO to estimate demand patterns in electricity over the long-term. To do this we considered several ordinary least squares (OLS) regression model each fitted to assess the association between a set of predictor variables and average daily demand. Our predictor variables included both temporal and weather based variables. We then chose a model by comparing important scores such as ____ (which ______). We further adapted it to ensure practicality and simplicity of the model. Finally we analyse the predictive ability of our model by applying cross validation to ensure the model has strong predictive ability and to ensure its not over fitting to the data set. 
 
-for (i in 2:nrow(TE_data)) {
-  TE_data$TE[i] <- mean(c(TE_data$TO[i], TE_data$TE[i-1]), na.rm = TRUE)
-}
+# Description of Data and Exploratory Analysis
 
-# Join TO and TE back into main dataset
-data <- data %>%
-  select(-Hour) %>%
-  left_join(TE_data, by = "Date")
+Prior to fitting any models we examine the dataset used in our analysis. We consider the following predictor variables for our linear model: 
 
-# Define the months you want to keep
-desired_months <- c(11, 12, 1, 2, 3)
+- $\texttt{wind}$
+- $\texttt{solar}$
+- $\texttt{temp}$
+- $\texttt{wdayindex}$
+- $\texttt{month}$
+- $\texttt{year}$
+- $\texttt{TO}$:  Average temperature from 3 PM – 6 PM on each day
+- $\texttt{TE}$:  Average of $\texttt{TO}$ at 6 PM and $\texttt{TE}$ at 6 PM on the previous day. The $\texttt{TE}$ for 1 November 1991 was taken to be 11.37 degrees celsius.
 
-# Filter rows where Month is in desired_months
-filtered_data <- data[data$Month %in% desired_months & data$Year != 2015, ]
+We next examine the data visually to highlight any general trends and detect any anomalies. We use scatter plots in Figure __ below to examine how each predictor correlates with demand. 
 
-filtered_data <- filtered_data %>%
-  group_by(Date) %>%
-  summarise(
-    across(where(is.numeric), mean, na.rm = TRUE)
-  ) %>%
-  ungroup()
+```{r Exploratory Analysis, eval=TRUE, echo=FALSE, fig.height=30, fig.width=20, message = 'false', results='hide'}
+
+# Temp vs Demand- shows negative correlation
+temp_plot <- ggplot(processed.data, aes(x=temp_merra1, y=demand_gross)) +
+  geom_point(alpha=0.5, color=viridis(9)[8]) +
+  geom_smooth(method="lm", color="red") +
+  labs(title="Peak Demand vs Temperature", x="Temperature (°C)", y="Peak Demand (MW)") +
+  theme(text = element_text(size = 16))  
+
+# TE vs Demand - shows negative correlation
+te_plot <- ggplot(processed.data, aes(x=TE, y=demand_gross)) +
+  geom_point(alpha=0.5, color=viridis(9)[4]) +
+  geom_smooth(method="lm", color="red") +
+  labs(title="Peak Demand vs TE", x="TE (°C)", y="Peak Demand (MW)") +
+  theme(text = element_text(size = 16))  
+
+# TO vs Demand
+to_plot <- ggplot(processed.data, aes(x=TO, y=demand_gross)) +
+  geom_point(alpha=0.5, color=viridis(9)[4]) +
+  geom_smooth(method="lm", color="red") +
+  labs(title="Peak Demand vs TE", x="TO (°C)", y="Peak Demand (MW)") +
+  theme(text = element_text(size = 16))  
+
+# Year vs Demand - shows negative correlation
+year_plot <- ggplot(processed.data, aes(x=Year, y=demand_gross)) +
+  geom_point(alpha=0.5) +
+  geom_smooth(method="lm", color="red") +
+  labs(title="Peak Demand vs Year", x="Year", y="Peak Demand (MW)") +
+  theme(text = element_text(size = 16))  
+
+# Month vs Demand 
+month_plot <- ggplot(processed.data, aes(x = as.factor(Month), y = demand_gross)) +
+  geom_boxplot() +
+  labs(title = "Demand vs Month", x = "Month Index", y = "Demand") +
+  theme(text = element_text(size = 16)) 
+
+
+# Weekday Index vs Demand 
+wday_plot <- ggplot(processed.data, aes(x = as.factor(WeekdayNum), y = demand_gross)) +
+  geom_boxplot() +
+  labs(title = "Demand vs Weekday", x = "Weekday Index", y = "Demand") +
+  theme(text = element_text(size = 16))
+
+
+# Arrange in a grid
+(wind_plot + solar_plot) / (to_plot + te_plot) / (temp_plot + year_plot) /  (month_plot + wday_plot)   
+  plot_annotation(title = "Exploratory Analysis of Demand Data", theme = theme(plot.title = element_text(size = 20, face = "bold")))
+```
 ```
 
-```{r eda, echo = FALSE, warning=FALSE}
-library(viridis)
-library(gridExtra)
-# Wind vs demand
-wind_plot <- ggplot(filtered_data, aes(x=wind_merra1, y=demand_gross)) +
-  geom_point(alpha=0.5, color=viridis(5)[4]) +
-  geom_smooth(method="lm", color="red") +
-  labs(title="Average Demand vs Wind Capacity", x="Wind Capacity Factor", y="Month Demand (MW)") +
-  theme_bw()
-
-# Solar vs demand
-solar_plot <- ggplot(filtered_data, aes(x=solar_sarah, y=demand_gross)) +
-  geom_point(alpha=0.5, color=viridis(5)[5]) +
-  geom_smooth(method="lm", color="red") +
-  labs(title="Month Demand vs Solar Capacity", x="Solar Capacity Factor", y="Month Demand (MW)") +
-  theme_bw()
-
-# Temp vs demand- shows negative correlation
-temp_plot <- ggplot(filtered_data, aes(x=temp_merra1, y=demand_gross)) +
-   geom_point(alpha=0.5, color=viridis(9)[8]) +
-   geom_smooth(method="lm", color="red") +
-   labs(title="Month Demand vs Temperature", x="Temperature (°C)", y="Month Demand (MW)") +
-   theme_bw()
-
-# TE vs demand- shows negative correlation
-to_plot <- ggplot(filtered_data, aes(x=TO, y=demand_gross)) +
-   geom_point(alpha=0.5, color=viridis(9)[4]) +
-   geom_smooth(method="lm", color="red") +
-   labs(title="Month Demand vs TE", x="Temperature (°C)", y="Month Demand (MW)") +
-   theme_bw()
-
-# Start_Year vs demand- shows negative correlation
-year_plot <- ggplot(filtered_data, aes(x=Year, y=demand_gross)) +
-   geom_point(alpha=0.5, color=viridis(5)[1]) +
-   geom_smooth(method="lm", color="red") +
-   labs(title="Month Demand vs Winter Start Year", x="Year", y="Month Demand (MW)") +
-   theme_bw()
-```
-
-```{r demand_scatters_show, warning = FALSE, echo=FALSE, out.width="100%", cache = FALSE, caption = "Plotting Month demand against explanatory variables."}
+```{r demand_scatters_show, warning = FALSE, echo=FALSE, out.width="100%", cache = FALSE, caption = "Plotting Average demand against explanatory variables."}
 suppressWarnings(grid.arrange(wind_plot, solar_plot, temp_plot, to_plot, year_plot, ncol = 2))
 ```
 
@@ -153,3 +167,430 @@ weekdays_stats <- data.frame(
 )
 print(weekdays_stats)
 ```
+
+**Key observations are recorded below:**
+
+$\texttt{wind}$
+
+* No clear trend observed. 
+* Initially included in the analysis to explore potential effects.
+
+$\texttt{solar_S}$
+
+* Most data around zero. 
+* Peak demand is associated with lower solar values.
+* As solar generation increases, demand remains scattered but generally tends toward lower values.
+
+$\texttt{temp}$
+
+* A slight negative linear correlation in demand is observed as temperature increases.
+
+$\texttt{wdayindex}$
+
+* Should be converted to a factor variable.
+* Demand is lower on weekends (Saturdays and Sundays) and highest on weekdays.
+* Monday to Thursday have similar mean demand, while Fridays show a slight decline.
+
+$\texttt{month}$
+
+* Clear effect observed, so it should be included in the model.
+* Highest demand in January and December, lowest in March, with moderate levels in February and November.
+
+$\texttt{year}$
+
+* The trend appears to follow a cubic pattern over time.
+
+$\texttt{start_year}$
+
+* Very similar to the Year variable. 
+* Also follows a cubic trend over time.
+
+$\texttt{TO}$
+
+* Displays a strong linear negative correlation with demand.
+
+$\texttt{TE}$
+
+* Also has a significant impact, with a linear negative correlation similar to TO.
+* The correlation appears slightly stronger than for TO.
+
+
+# Model fitting and cross-validation results
+
+## Metrics & Linear Models
+
+We aim to fit a ordinary least-squares linear regression model of the form $$\mathbf{y} = X \boldsymbol{\beta} + \boldsymbol{\epsilon}.$$ In this type of model we assume the following 
+
+* Linearity of the model parameters. 
+* The errors, $\boldsymbol{\epsilon}$, are normally distributed. 
+* The errors are independent.
+* The errors have constant variance (homoscedasticity).
+
+### Adjusted R-squared
+
+The $R^2$ metric measures the proportion of variance explained by the linear model. Formally it is defined as 
+\begin{equation*}
+    r^2 = 1 - \frac{\sum_{i}^{n}(y_i - \hat{\mu}_i)^2}{\sum_{i}^{n}(y_i - \overline{y})^2}
+\end{equation*}
+where $\mu_i$ is the estimated value of $y_i$ by the model and $\bar{y}$ is the sample mean of the data. The $R^2$ tends to overestimate how well a model is doing, and so to account for this we look at the adjusted $R^2$ metric which accounts for the number of parameters in the model.
+\begin{equation*}
+    r^2_{\text{adj}} = 1 - \frac{\frac{\sum_{i}^{n}(y_i - \hat{\mu}_i)^2}{(n-p)}} {\frac{\sum_{i}^{n}(y_i - \overline{y})^2}{(n-1)}}
+\end{equation*}
+Models with a higher adjusted $R^2$ are preferable over models with a lower one, as this indicates that the model explains a higher proportion of the variability within the data. 
+
+### Hypothesis Testing
+
+To check whether a variable is significant in the model or not, we use the following hypothesis test about the model parameters.
+\begin{eqnarray*}
+    H_0&:& \beta_i = 0 \\
+    H_1&:& \beta_i \neq 0.
+\end{eqnarray*}
+using the test statistic $T = \frac{\hat{\beta}_i - \beta_0}{\hat{\sigma}_{\hat{\beta}_i}} \sim t_{n-p}$. The resulting p-value of the test gives the probability of observing a value as or more extreme than the observed test statistic given that $H_0$ is true. The model summary output gives the p-value of these tests for each of the model parameters. A high p-value suggests that we cannot reject the null hypothesis that $H_0$ is true, that is that the associated parameter in the model is equal to 0, and the variable has no statistically significant effect in the model. 
+
+
+## Model Selections
+
+
+
+## Evaluation of Model
+
+
+
+```{r Exploratory Analysis 2, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+# Q2: HOW WELL DOES THE MODEL FIT HISTORIC DATA
+
+library(knitr)
+
+# Calculate Root Mean Squared Error (baseline model)
+rmse_m0 <- sqrt(mean((demand.data$demand_gross - predict(m0))^2))
+
+# Calculate Root Mean Squared Error (our model)
+rmse_finalmodel <- sqrt(mean((demand.data$demand_gross - predict(chosen.mod))^2))
+
+# Create the data frame
+table_data <- data.frame(
+  Model = c("$M_0$", "$M_F$"),
+  RMSE = c(rmse_m0, rmse_finalmodel),
+  "$R^2$" = c(0.4636, 0.7779),
+  check.names = FALSE
+)
+
+# Print the table
+kable(table_data, caption = "Model Performance Comparison")
+
+```
+
+
+
+
+```{r Residuals, eval=FALSE, echo=FALSE, fig.height=16, fig.width=16}
+
+# Check Residuals
+par(mfrow = c(2, 2))
+plot(chosen.mod)
+
+```
+
+T
+
+
+```{r Actual vs Predicted Demand, eval=FALSE, echo=FALSE}
+
+#Plot Actual vs Predicted Demand
+ggplot(demand.data, aes(x=demand_gross, y=predict(chosen.mod))) +
+  geom_point(alpha=0.6) +
+  geom_abline(slope=1, intercept=0, color="red") +
+  labs(title="Actual vs. Predicted Peak Demand",
+       x="Actual Demand", y="Predicted Demand") +
+  theme_minimal()
+
+```
+
+
+
+
+## Cross Validation:
+
+### Methodology
+To prevent overfitting and compare model generalizability, we use cross-validation. In particular, in this report, we apply expanding window cross-validation to evaluate our model. This involves fitting the model on an initial training set from 1991 up to 2000 and then testing the model on the data set including the following year. The metrics defined below are then obtained. 
+
+* Squared error: $\text{SE} = (y - \hat{y}_F)^2$
+* Interval score: $\text{IS}(\alpha) = U_F - L_F + \frac{2}{\alpha} (L_F - y) \mathcal{1}\{y \leq L_F\} + \frac{2}{\alpha} (y - U_F) \mathcal{1}\{y > L_F\}$ where $L_F$ and $U_F$ denote the lower and upper bound of the prediction interval with coverage probability $\alpha$.
+
+* Dawid-Sebastiani: $\text{DS} = \frac{(y - \hat{y}_F)^2}{\sigma^2_F} + \log(\sigma^2_F)$
+
+
+We then repeat this process, expanding the training set set forward 1 year and moving the test set forward by one year. We use this method as it mimics the real-world forecasting this will be used for and so ensures we maintain the chronological order of the data. Furthermore, it allows it to be validated across a broad range of the historical data. 
+
+We can interpret each of the metrics defined above as follows:
+The squared error (SE) is a measure of distance of the predicted values from the actual values. The Dawid-Sebastiani score is similar to the SE but also includes a penalty for overly high or low predicted variance. It accounts for both the accuracy of the prediction and the confidence associated with it. 
+The interval score is based on a specified prediction interval. We use a 95% prediction interval.This 95% interval means that, if the model is correct, there's a 95% chance that the next observed value will fall within the predicted range. The interval score measures accuracy by:
+
+* Rewarding narrower intervals (higher precision),
+* Penalizing when the observed value falls outside the interval, and,
+* Increasing the penalty the further the observation is from the interval bounds.
+
+### Assessing Overfitting for the Chosen Model
+To assess whether the chosen model is overfitting, we first recall earlier that we looked at the root mean squared error (RMSE) based on the full set of data - i.e. the RMSE of the fitted values. We now compare this with the RMSE derived from the Cross Validation in the table below. 
+
+
+```{r, Assessing Overfitting, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+# Create the data frame
+rmse_values <- c("Fitted RMSE" = rmse_finalmodel, "Cross Validation RMSE" = chosen.scores$RMSE)
+
+# Convert to a data frame and transpose
+RMSE.data <- as.data.frame(t(rmse_values))
+
+
+# Print the table
+kable(RMSE.data, caption = "How the model performs on trained data vs new data")
+
+```
+
+The fitted RMSE is slightly lower than the cross-validation RMSE, likely due to smaller estimation and prediction sets in cross-validation. However, the difference is small relative to the data scale and not significant, suggesting the model does not perform significantly better on the data it was trained on compared to new data. Therefore we conclude the chosen model is not overfitting.
+
+
+### Comparing Models
+
+We next use cross-validation to compare the basic model with our chosen model. For each model, we plot predicted demand against observed demand, with color indicating the fold the data belongs to. Ideally, points should align with the black line $y=x$, indicating accurate predictions.
+
+```{r Model Comparison, eval=FALSE, echo=FALSE, fig.height=10, fig.width=20, message=FALSE, warning=FALSE}
+chosen.crossvalid <- chosen.crossvalid %>% mutate(day.type = ifelse(wdayindex %in% c(0, 6), "Weekend", "Weekday"))
+c1 <- ggplot(basic.crossvalid, aes(observed, mean, colour = as.factor(fold))) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "black") +
+  labs(title = "Predicted vs. Actual Demand",
+       x = "Actual Demand",
+       y = "Predicted Demand") +
+  scale_colour_discrete(name = "Fold Year") +
+  theme(text = element_text(size = 16))
+
+
+c2 <- ggplot(chosen.crossvalid, aes(observed, mean, colour = as.factor(fold))) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "black") +
+  labs(title = "Predicted vs. Actual Demand",
+       x = "Actual Demand",
+       y = "Predicted Demand") +
+  scale_colour_discrete(name = "Fold Year") + 
+  theme(text = element_text(size = 16))
+
+(c1 + c2)
+
+```
+
+
+For the basic model (left), the plot shows a wide dispersion around $y=x$, forming a broad parallelogram shape. We see significant overestimation at lower observed demand levels and underestimation at higher levels. This indicates the model lacks complexity to capture key patterns.
+
+In contrast, the chosen model (right) aligns more closely with $y=x$. While we still see some overestimation and underestimation, the predictions are generally more accurate. However, there is a scatter of points above the line which are significant overestimations. This is a limitation of the model. However in general these are scattered and more occasional. On the other hand the model avoids large underestimation and generally maintains consistency around the $y = x$ line. This highlights that the chosen model better captures demand patterns and generalizes more effectively. 
+
+The predictive scores, printed in the table below, further indicate that the chosen model forecasts peak demand levels more accurately. 
+
+```{r RMSE Table, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+
+all.scores <- bind_rows(basic.scores, chosen.scores) %>%
+                            mutate(Model = c("Basic", "Final")) %>%
+                            select(Model, everything())
+
+# Print the table
+kable(all.scores, caption = "Predictive Scores Comparison by Model")
+
+```
+
+Firstly, the RMSE for the basic model is $3702.12$ while for the final model is $2462.88$. These both seem quite large but we can consider this in terms of the scale of the data. For example, considering it as a percentage relative to the mean peak electricity demand, $49294.32$, we find the RMSE for the basic model is $\frac{3702.12}{49294.32} * 100 = 7.51\%$ and the RMSE for the final model is $\frac{2462.88}{49294.32} * 100 = 4.99\%$. Furthermore, the Dawid Sebastiani score and the interval score are both lower for the final model compared to the basic model. These results indicates that the final model has a stronger performance than the basic model.
+
+
+### Analysis of Prediction Performance by Month
+
+To measure the prediction accuracy of the final model across all of the months, the following 3 prediction scores: 
+
+* Squared error score 
+* Dawid Sebastiani score 
+* Interval score 
+
+These were computed using the 24-fold cross validation scheme as defined earlier. The average of each of these scores, grouped by month, are displayed in the graphs below.
+
+```{r Q3, eval=FALSE, echo=FALSE, fig.height=7, fig.width=20, message=FALSE, warning=FALSE}
+# BAR PLOTS
+
+# MSE by month 
+b1 <- ggplot(chosen.mse.df, aes(x = month.name, y = MSE, fill = month.name)) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none") +
+  coord_cartesian(ylim = c(0, max(chosen.mse.df$MSE)+10000)) + 
+  labs(title = "MSE by Month",
+       x = "Month",
+       y = "MSE") +
+  theme(text = element_text(size = 16))
+
+# Interval Score by month 
+b2 <- ggplot(chosen.int.df, aes(x = month.name, y = INT, fill = month.name)) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none") +
+  coord_cartesian(ylim = c(0, max(chosen.int.df$INT)+ 500)) +
+  labs(title = "Average Interval Score by Month",
+       x = "Month",
+       y = "Average Interval Score") +
+  theme(text = element_text(size = 16))
+
+# Dawid-Sebastiani Score by month 
+b3 <- ggplot(chosen.ds.df, aes(x = month.name, y = DS, fill = month.name)) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none") +
+  coord_cartesian(ylim = c(0, 18.5)) +
+  labs(title = "Average DS Score by Month",
+       x = "Month",
+       y = "Average DS Score") +
+  theme(text = element_text(size = 16))
+
+(b1 + b2 + b3)
+
+```
+
+It is clear from all three scores that the prediction accuracy of the model is not consistent across all months. The model makes the least accurate predictions for the month of December, as highlighted by the fact that the prediction score for this month is the highest across all three scores. This may be due to more variation in energy usage in December, due to disruption to standard working hours in the holiday/festive season. Energy usage may increase for example due to Christmas lights. 
+
+The model makes the most accurate predictions for the month of February, as highlighted by the fact that the prediction score for this month is the lowest across all three scores. 
+
+### Analysis of Prediction Performance by Day Type
+
+We next investigate how well the final model predicts for weekdays vs weekends. To do this we first plot the predicted values against observed demand for the weekend and weekdays individually.
+
+```{r Weekday vs Weekend, eval=FALSE, echo=FALSE, fig.height=10, fig.width=20, message=FALSE, warning=FALSE}
+
+ggplot(chosen.crossvalid, aes(observed, mean)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "blue") +
+  labs(title = "Predicted vs. Actual Demand",
+       x = "Actual Demand",
+       y = "Predicted Demand") +
+  facet_wrap(~day.type) + 
+  theme(text = element_text(size = 16))
+
+
+```
+
+
+Observe that for the weekend (right) the points mostly align closely with $y=x$ with a slight underestimation as demand increases. On the other hand for weekdays (left), while most points align closely with $y=x$ for the high demand levels, as demand decreases the values are more scattered. In particular, there is slight underestimation of demand and some significant overestimations of demand. This trend makes sense, as we saw during data exploration that weekdays tend to have higher demand levels. As a result, low demand levels are relatively uncommon, making them harder to predict accurately. Ideally, however, the model would be able to account for weekdays where the demand was uncommonly low or weekend where demand was uncommonly high. This limitation of the model is discussed further in the limitations section.
+
+
+### Effect of Weather Conditions on Electricity Demand
+
+We want to consider how different weather conditions have an effect on the peak electricity demand. To do this we compare how the maximum peak electricity demand in the 2013-14 winter season would be affected if the weather conditions from other years had occurred. Below we see the plots for taking the wind, solar, and temperature conditions respectively from other years and calculating a new maximum annual demand for the 2013-14 winter season.
+
+```{r weather effect, eval=FALSE, echo=FALSE, fig.height=10, fig.width=20}
+# Q4: CHANGE IN MAXIMUM ANNUAL DEMAND WITH DIFFERENT WINTERS
+
+# Plotting maximum annual demand with different wind conditions
+wind <- ggplot(replaced_wind_df, aes(x = start_year, y = mad)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Variation in 2013/14 Maximum Annual Demand \nwith different Wind Conditions",
+       x = "Year",
+       y = "Maximum Annual Demand") +
+  scale_y_continuous(limits = c(53000, 56000))
+
+# Plotting maximum annual demand with different solar conditions
+solar <- ggplot(replaced_solar_df, aes(x = start_year, y = mad)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Variation in 2013/14 Maximum Annual Demand \nwith different Solar Conditions",
+       x = "Year",
+       y = "Maximum Annual Demand") +
+  scale_y_continuous(limits = c(53000, 56000))
+
+# Plotting maximum annual demand with different temperature conditions
+temp <- ggplot(replaced_temp_df, aes(x = start_year, y = mad)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Variation in 2013/14 Maximum Annual Demand \nwith different Temperature Conditions",
+       x = "Year",
+       y = "Maximum Annual Demand")
+
+# Display plots
+grid.arrange(wind, solar, temp, ncol = 3)
+```
+
+
+Altering wind conditions clearly has no effect on the maximum annual demand according to our model, but this is to be expected since wind is not a parameter we consider in our final model.
+
+There is also no significant effect on maximum annual demand when we change the solar conditions. This would suggest that solar capacity does not effect the maximum peak electricity demand but it is something we have concluded significant enough to include in our model. This may be because although solar capacity does have an impact, it does not significantly increase the average peak electricity demand across the year. It may be that solar has more of an effect when considering lower peak electricity demands. Intuitively this makes sense because using solar energy decreases overall electricity demand and so the solar capacity is having a larger impact on decreasing peak electricity demand than increasing it. Therefore, solar is not a factor to be considered when evaluating the maximum annual demand, as supported by the graph.
+
+Finally, the temperature conditions clearly have an effect on the maximum annual demand, suggesting the temperature conditions of a given year significantly impacts what the peak electricity demand in that year is. This aligns with what we would expect since electricity demands would understandably rise when it is very cold so a particularly cold winter would be expected to have a higher peak electricity demand. This further supports the idea that temperature conditions should be factored into any model predicting electrical usage and particularly when the focus of the model is for accommodating at times of high peak demand. If we know we are going to have a cold winter then it is sensible to predict higher electricity demand and it is important to be able to accommodate for this. The graph therefore supports our use of TE and TO in our model.
+
+Therefore, some weather conditions, namely temperature, have an effect on maximum annual demand whereas others, wind and solar capacity, do not.
+
+### Alternative to TE
+
+The plots in the exploratory analysis revealed a slight negative correlation between temperature and peak daily energy demand.
+
+To represent temperature, NESO uses the variable TE. 
+\begin{equation*}
+    \texttt{TE} = 0.5(\texttt{TE}(t-24) + \texttt{TO}(t)
+\end{equation*}
+where TO is the average temperature on a given date between 3pm and 6pm.
+
+In this section, we explore potential alternative measures to replace TE After evaluating these alternatives, we conclude that TE is the most effective and therefore retain it in our model.
+
+We consider the 4 following alternatives: 
+
+* Method 1: We tested a variable called DSS, which calculates the absolute difference between the 6 PM temperature and a chosen base temperature - in this case, the mean temperature across all years. The theory behind this alternative it allows the model to identify deviations from normal conditions at the peak usage time of 6pm.
+
+* Method 2: This involved using the temp data set to redefine the TO variable. A new variable was defined, $\text{new}_{\text{TO}}$ which is the average temperature between 5pm to 6pm on a given day. This was then used to define a new TE variable, denoted $\text{new}_{\text{TE}}$. The idea was that by shortening the time period to closer to 6pm, it would give a more accurate prediction of the energy demand at the peak usage time of 6pm. 
+* Method 3: This approach was similar to method 2, this time defining $\text{new}_{\text{TO}}$ as the average temperature between 1pm and 7pm on a given day. The theory behind this approach was to lengthen the time frame to average over, to give a better representation of the temperature throughout the afternoon and immediately after the peak energy usage time.
+
+* Method 4: We tested using two variables Max  and Min which are the maximum daily temperature and minimum daily temperature respectively. The theory behind this variable was that part of the day being  extremely cold or hot could influence behavior, such as turning on cooling or heating systems. These systems may still be running at 6pm, affecting peak demand. 
+
+To assess the alternative models we again consider the following metric scores:
+
+* $R^2$
+* Akaike Information Criterion (AIC)
+* Root Mean Square Error (RMSE)
+* Mean Dawid Sebastiani (MDS) 
+* Mean Interval score (MIS)
+
+We substituted TE with each alternative variable one by one. The results for each alternative model are displayed below. 
+
+```{r, Q5 Table,  eval=FALSE, echo=FALSE}
+
+chosen.R2 <- summary(chosen.mod)$adj.r.squared
+q5.mod1.R2 <- summary(q5.mod1)$adj.r.squared
+q5.mod2.R2 <- summary(q5.mod2)$adj.r.squared
+q5.mod3.R2 <- summary(q5.mod3)$adj.r.squared
+q5.mod4.R2 <- summary(q5.mod4)$adj.r.squared
+
+
+all.metrics <- bind_rows(
+  chosen.scores  %>% mutate(Method = "TE",       `$R^2$` = chosen.R2, AIC = AIC(chosen.mod)),
+  chosen.scores1 %>% mutate(Method = "Method 1", `$R^2$` = q5.mod1.R2, AIC = AIC(q5.mod1)),
+  chosen.scores2 %>% mutate(Method = "Method 2", `$R^2$` = q5.mod2.R2, AIC = AIC(q5.mod2)),
+  chosen.scores3 %>% mutate(Method = "Method 3", `$R^2$` = q5.mod3.R2, AIC = AIC(q5.mod3)),
+  chosen.scores4 %>% mutate(Method = "Method 4", `$R^2$` = q5.mod4.R2, AIC = AIC(q5.mod4))
+) %>%
+  select(Method, `$R^2$`, AIC, RMSE, MDS, MIS)
+
+# Print the table
+kable(all.metrics, caption = "TE Alternatives")
+
+```
+
+Our results showed that none of the four alternatives to TE were better in terms of the proportion of variance in the data that the models could explained, or in terms of prediction accuracy across the 3 different prediction scores. 
+
+The adjusted $R^2$ is higher for the original model compared to the alternative models. Furthermore, the AIC is lower in the original model compared with the alternative models. Therefore, each alternative variable results in a poorer model fit which explains less variability of the data. This suggests that TE remains the more suitable choice for capturing temperature effects.
+
+
+## Model Limitations
+
+Despite the strengths of our final model, there are limitations that must be taken into account when interpreting our results.
+
+* Firstly, it is clear that our model overestimates the peak electricity demand in the lower tails, when the peak demand is relatively low. However, NESO has expressed that overestimating is less of a priority for them than failing to meet high peak demand, making this less of a concern.
+
+* As mentioned above, if the actual demand is low on a weekday, the model is more likely to predict demand inaccurately. While this makes sense, since in general the demand is higher on weekdays, ideally the model would be able to account for this. A potential way of adapting the model to account for this could be considering day-type as a factor rather than weekday index. 
+
+* As previously mentioned, the residuals of our model are not normally distributed. However this is the least important assumption as we can appeal to the Central Limit Theorem as the size of the sample grows. 
+
+Many of the variables are highly correlated with each other (e.g. TO vs TE). This is a drawback of the data we have been given.  
+
+
+# Conclusion
+
+In summary, we have developed a new model for NESO, based on linear regression, that generates realistic traces of daily peak demand. After initially inspecting the data, we investigated several models. We found that including year as a cubic term had the most significant effect on refining the model performance. Using TE instead of temperature further made a notable difference. Additionally, TE was found to be the best measure of temperature among several other alternatives investigated. The final model,  with an adjusted $R^2$ of 0.7779,  predicts demand with improved accuracy compared to the base model. To evaluate the model, we first checked the model assumptions and then further considered it’s predictive performance using a 24-fold cross validation scheme and several different predictive scores. In spite of the limitations, the model was found to have a strong predictive performance when tested on new data and as a result will aid NESO in their long term planning goals. 
