@@ -16,7 +16,10 @@ data <- data %>%
     WeekdayNum = wday(Local_DateTime) - 1,
     Year = year(Local_DateTime),
     Date = as.Date(Local_DateTime),
-    Hour = hour(Local_DateTime)  
+    Hour = hour(Local_DateTime),
+    winter_year = ifelse(Month >= 11, Year, Year - 1),
+    winter_start = as.Date(paste0(winter_year, "-11-01")),
+    DSN = as.numeric(Date - winter_start)
   )
 
 # TO calculation 
