@@ -28,7 +28,10 @@ data <- data %>%
     WeekdayNum = wday(Local_DateTime),
     Year = year(Local_DateTime),
     Date = as.Date(Local_DateTime),
-    Hour = hour(Local_DateTime)  # Extract hour
+    Hour = hour(Local_DateTime),  # Extract hour
+    winter_year = ifelse(Month >= 11, Year, Year - 1),
+    winter_start = as.Date(paste0(winter_year, "-11-01")),
+    DSN = as.numeric(Date - winter_start)
   )
 
 # --- TO calculation (avg temp 3–6pm) ---
