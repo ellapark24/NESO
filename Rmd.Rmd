@@ -64,7 +64,7 @@ The main aim of this report was to enable NESO to estimate demand patterns in el
 
 Prior to fitting any models we examine the dataset used in our analysis. We consider the following predictor variables for our linear model: 
 
-- $\texttt{wind}$
+- $\texttt{wind_merra}$
 - $\texttt{solar}$
 - $\texttt{temp}$
 - $\texttt{wdayindex}$
