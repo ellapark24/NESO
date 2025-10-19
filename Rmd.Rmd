@@ -64,18 +64,33 @@ The main aim of this report was to enable NESO to estimate demand patterns in el
 
 Prior to fitting any models we examine the dataset used in our analysis. We consider the following predictor variables for our linear model: 
 
-- $\texttt{wind}$
-- $\texttt{solar}$
-- $\texttt{temp}$
-- $\texttt{wdayindex}$
-- $\texttt{month}$
-- $\texttt{year}$
+- $\texttt{wind_merra}$: Average capacity factor of wind generation based on wind speeds
+- $\texttt{solar_sarah}$: Average capacity factor of solar generation based on solar output
+- $\texttt{temp_merra1}$: Average temperature 
+- $\texttt{wdayindex}$: Day of the week
+- $\texttt{month}$: Month
+- $\texttt{year}$: Year
+- $\texttt{DNS}$: Number of days since November
 - $\texttt{TO}$:  Average temperature from 3 PM – 6 PM on each day
 - $\texttt{TE}$:  Average of $\texttt{TO}$ at 6 PM and $\texttt{TE}$ at 6 PM on the previous day. The $\texttt{TE}$ for 1 November 1991 was taken to be 11.37 degrees celsius.
 
-We next examine the data visually to highlight any general trends and detect any anomalies. We use scatter plots in Figure __ below to examine how each predictor correlates with demand. 
+We next examine the data visually to highlight any general trends and detect any anomalies. We use scatter plots below to examine how each predictor correlates with demand. 
 
 ```{r Exploratory Analysis, eval=TRUE, echo=FALSE, fig.height=30, fig.width=20, message = 'false', results='hide'}
+
+# Wind vs Demand
+wind_plot <- ggplot(processed.data, aes(x=wind_merra1, y=demand_gross)) +
+  geom_point(alpha=0.5, color=viridis(9)[1]) +
+  geom_smooth(method="lm", color="red") +
+  labs(title="Peak Demand vs Wind Capacity", x="Wind Capacity Factor", y="Peak Demand (MW)") +
+  theme(text = element_text(size = 16))  
+
+# Solar vs Demand
+solar_plot <- ggplot(processed.data, aes(x=solar_sarah, y=demand_gross)) +
+  geom_point(alpha=0.5, color=viridis(9)[6]) +
+  geom_smooth(method="lm", color="red") +
+  labs(title="Peak Demand vs Solar Capacity", x="Solar Capacity Factor", y="Peak Demand (MW)") +
+  theme(text = element_text(size = 16))
 
 # Temp vs Demand- shows negative correlation
 temp_plot <- ggplot(processed.data, aes(x=temp_merra1, y=demand_gross)) +
@@ -93,127 +108,48 @@ te_plot <- ggplot(processed.data, aes(x=TE, y=demand_gross)) +
 
 # TO vs Demand
 to_plot <- ggplot(processed.data, aes(x=TO, y=demand_gross)) +
-  geom_point(alpha=0.5, color=viridis(9)[4]) +
+  geom_point(alpha=0.5, color=viridis(9)[9]) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Average Demand vs TE", x="TO (°C)", y="Average Demand (MW)") +
+  labs(title="Average Demand vs TO", x="TO (°C)", y="Average Demand (MW)") +
   theme(text = element_text(size = 16))  
 
-# Year vs Demand - shows negative correlation
-year_plot <- ggplot(processed.data, aes(x=Year, y=demand_gross)) +
+# dsn vs Demand - shows negative correlation
+dsn_plot <- ggplot(processed.data, aes(x=DSN, y=demand_gross)) +
   geom_point(alpha=0.5) +
-  geom_smooth(method="lm", color="red") +
-  labs(title="Average Demand vs Year", x="Year", y="Average Demand (MW)") +
+  geom_smooth(method="lm", formula = y ~ poly(x,2), color="red") +
+  labs(title="Average Demand vs Year", x="Days since November", y="Average Demand (MW)") +
   theme(text = element_text(size = 16))  
 
-# Month vs Demand 
-month_plot <- ggplot(processed.data, aes(x = as.factor(Month), y = demand_gross)) +
-  geom_boxplot() +
-  labs(title = "Demand vs Month", x = "Month Index", y = "Demand") +
-  theme(text = element_text(size = 16)) 
-
-
-# Weekday Index vs Demand 
-wday_plot <- ggplot(processed.data, aes(x = as.factor(WeekdayNum), y = demand_gross)) +
-  geom_boxplot() +
-  labs(title = "Demand vs Weekday", x = "Weekday Index", y = "Demand") +
-  theme(text = element_text(size = 16))
-
-
-# Arrange in a grid
-(wind_plot + solar_plot) / (to_plot + te_plot) / (temp_plot + year_plot) /  (month_plot + wday_plot)   
-  plot_annotation(title = "Exploratory Analysis of Demand Data", theme = theme(plot.title = element_text(size = 20, face = "bold")))
-```
-```
-
-```{r demand_scatters_show, warning = FALSE, echo=FALSE, out.width="100%", cache = FALSE, caption = "Plotting Average demand against explanatory variables."}
-suppressWarnings(grid.arrange(wind_plot, solar_plot, temp_plot, to_plot, year_plot, ncol = 2))
-```
-
-```{r violin, echo=FALSE, warning=FALSE}
-library(gridExtra)
 # Month vs demand
-month_plot <- ggplot(filtered_data, aes(x=factor(Month, levels = c(11, 12, 1, 2, 3)), y=demand_gross, fill=factor(Month))) +
+month_plot <- ggplot(processed.data, aes(x=factor(Month, levels = c(10, 11, 12, 1, 2)), y=demand_gross, fill=factor(Month))) +
   geom_violin(alpha=0.5) +  # Create the violin plot
-  geom_boxplot(width=0.2, color="black", alpha=0.7) +  # Add a boxplot inside the violin for quartiles
+  geom_boxplot(width=0.2, color="black", alpha=0.7) +  
   scale_fill_viridis_d(option="viridis") +    
   scale_x_discrete(labels=c("November", "December", "Janurary", "February", "March")) +
-  labs(title="Month Demand Distribution by Month", x="Month", y="Month Demand (MW)") +
+  labs(title="Peak Demand Distribution by Month", x="Month", y="Peak Demand (MW)") +
   theme_bw() +
   guides(fill=FALSE) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # Day of week
-day_plot <- ggplot(filtered_data, aes(x=factor(WeekdayNum), y=demand_gross, fill=factor(WeekdayNum))) +
+day_plot <- ggplot(processed.data, aes(x=factor(WeekdayNum), y=demand_gross, fill=factor(WeekdayNum))) +
   geom_violin(alpha=0.5) +  # Create the violin plot
-  geom_boxplot(width=0.2, color="black", alpha=0.7) +  # Add a boxplot inside the violin for quartiles
+  geom_boxplot(width=0.2, color="black", alpha=0.7) +  
   scale_fill_viridis_d(option="viridis") + 
   scale_x_discrete(labels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")) +
-  labs(title="Month Demand by Day of the Week", x="Day of Week", y="Month Demand (MW)") +
+  labs(title="Peak Demand by Day of the Week", x="Day of Week", y="Peak Demand (MW)") +
   theme_bw() +
   guides(fill=FALSE) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Arrange in a grid
+(wind_plot + solar_plot) / (temp_plot + to_plot) / (te_plot + dsn_plot) /  (month_plot + day_plot)   
+  plot_annotation(title = "Exploratory Analysis of Demand Data", theme = theme(plot.title = element_text(size = 20, face = "bold")))
+```
 ```
 
-```{r violin_show, warning = FALSE, echo=FALSE, out.width="100%", cache = FALSE, caption = "Violin plots to analyse effect of month and day on Month demand."}
-grid.arrange(month_plot, day_plot, ncol = 2, nrow = 1)
-```
-
-```{r wday_eda_table, echo=FALSE, warning=FALSE}
-weekdays_stats <- data.frame(
-  Day = factor(0:6, labels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")),
-  Median = tapply(filtered_data$demand_gross, filtered_data$WeekdayNum, median, na.rm = TRUE),
-  Q1 = tapply(filtered_data$demand_gross, filtered_data$WeekdayNum, function(x) quantile(x, 0.25, na.rm = TRUE)),
-  Q3 = tapply(filtered_data$demand_gross, filtered_data$WeekdayNum, function(x) quantile(x, 0.75, na.rm = TRUE))
-)
-print(weekdays_stats)
-```
-
-**Key observations are recorded below:**
-
-$\texttt{wind}$
-
-* No clear trend observed. 
-* Initially included in the analysis to explore potential effects.
-
-$\texttt{solar_S}$
-
-* Most data around zero. 
-* Peak demand is associated with lower solar values.
-* As solar generation increases, demand remains scattered but generally tends toward lower values.
-
-$\texttt{temp}$
-
-* A slight negative linear correlation in demand is observed as temperature increases.
-
-$\texttt{wdayindex}$
-
-* Should be converted to a factor variable.
-* Demand is lower on weekends (Saturdays and Sundays) and highest on weekdays.
-* Monday to Thursday have similar mean demand, while Fridays show a slight decline.
-
-$\texttt{month}$
-
-* Clear effect observed, so it should be included in the model.
-* Highest demand in January and December, lowest in March, with moderate levels in February and November.
-
-$\texttt{year}$
-
-* The trend appears to follow a cubic pattern over time.
-
-$\texttt{start_year}$
-
-* Very similar to the Year variable. 
-* Also follows a cubic trend over time.
-
-$\texttt{TO}$
-
-* Displays a strong linear negative correlation with demand.
-
-$\texttt{TE}$
-
-* Also has a significant impact, with a linear negative correlation similar to TO.
-* The correlation appears slightly stronger than for TO.
-
+Key observations from the analysis indicate that wind has no clear correlation with average demand and was therefore removed from the model as it provides no predictive value. Most the solar data are concentrated between 0 and 0.05, with higher solar generation associated with lower average demand, suggesting an inverse relationship. This aligns with expectations, as increased sunlight reduces the need for lighting, lowering electricity demand. Temperature, TO and TE all show a negative linear correlation with average demand, suggesting that demand tends to decrease as temperature rises. This is intuitive since as warmer conditions generally reduce heating needs. TE shows the strongest negative effect and is considered the best temperature measure because it incorporates information from both today and the previous day. Its importance lies in averaging with the past day, capturing a lagged effect that may reflect customers updating heating settings with a delay. The days since november variable follows an overall quadratic distribution, but has a pronounced dip in December which suggests that an interaction between month and DSN should be considered in the model. Month has a clear effect on demand, with the highest levels observes in January and February and the lowest in November and March. Finally, day of the week is an important predictor to include in the model as demand is lower on weekends, highest on weekdays, with Monday through Thursday showing similar mean demand and a slight decline on Fridays. Combining weekdays and weekends reduce the resolution of these important differences. Year also has an impact on demand and will be included as a factor variable. However, this will be stripped out of the model by NESO, who will add their own year effect for future years.
 
 # Model fitting and cross-validation results
 
