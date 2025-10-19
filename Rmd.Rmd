@@ -60,7 +60,7 @@ Add this at the end once we have our results
 
 The main aim of this report was to enable NESO to estimate demand patterns in electricity over the long-term. To do this we considered several ordinary least squares (OLS) regression model each fitted to assess the association between a set of predictor variables and average daily demand. Our predictor variables included both temporal and weather based variables. We then chose a model by comparing important scores such as ____ (which ______). We further adapted it to ensure practicality and simplicity of the model. Finally we analyse the predictive ability of our model by applying cross validation to ensure the model has strong predictive ability and to ensure its not over fitting to the data set. 
 
-# Description of Data and Exploratory Analysis
+# Data and Exploratory Analysis
 
 Prior to fitting any models we examine the dataset used in our analysis. We consider the following predictor variables for our linear model: 
 
@@ -81,28 +81,28 @@ We next examine the data visually to highlight any general trends and detect any
 temp_plot <- ggplot(processed.data, aes(x=temp_merra1, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(9)[8]) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Peak Demand vs Temperature", x="Temperature (°C)", y="Peak Demand (MW)") +
+  labs(title="Average Demand vs Temperature", x="Temperature (°C)", y="Average Demand (MW)") +
   theme(text = element_text(size = 16))  
 
 # TE vs Demand - shows negative correlation
 te_plot <- ggplot(processed.data, aes(x=TE, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(9)[4]) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Peak Demand vs TE", x="TE (°C)", y="Peak Demand (MW)") +
+  labs(title="Average Demand vs TE", x="TE (°C)", y="Average Demand (MW)") +
   theme(text = element_text(size = 16))  
 
 # TO vs Demand
 to_plot <- ggplot(processed.data, aes(x=TO, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(9)[4]) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Peak Demand vs TE", x="TO (°C)", y="Peak Demand (MW)") +
+  labs(title="Average Demand vs TE", x="TO (°C)", y="Average Demand (MW)") +
   theme(text = element_text(size = 16))  
 
 # Year vs Demand - shows negative correlation
 year_plot <- ggplot(processed.data, aes(x=Year, y=demand_gross)) +
   geom_point(alpha=0.5) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Peak Demand vs Year", x="Year", y="Peak Demand (MW)") +
+  labs(title="Average Demand vs Year", x="Year", y="Average Demand (MW)") +
   theme(text = element_text(size = 16))  
 
 # Month vs Demand 
@@ -300,7 +300,7 @@ T
 ggplot(demand.data, aes(x=demand_gross, y=predict(chosen.mod))) +
   geom_point(alpha=0.6) +
   geom_abline(slope=1, intercept=0, color="red") +
-  labs(title="Actual vs. Predicted Peak Demand",
+  labs(title="Actual vs. Predicted Average Demand",
        x="Actual Demand", y="Predicted Demand") +
   theme_minimal()
 
@@ -473,111 +473,6 @@ ggplot(chosen.crossvalid, aes(observed, mean)) +
 Observe that for the weekend (right) the points mostly align closely with $y=x$ with a slight underestimation as demand increases. On the other hand for weekdays (left), while most points align closely with $y=x$ for the high demand levels, as demand decreases the values are more scattered. In particular, there is slight underestimation of demand and some significant overestimations of demand. This trend makes sense, as we saw during data exploration that weekdays tend to have higher demand levels. As a result, low demand levels are relatively uncommon, making them harder to predict accurately. Ideally, however, the model would be able to account for weekdays where the demand was uncommonly low or weekend where demand was uncommonly high. This limitation of the model is discussed further in the limitations section.
 
 
-### Effect of Weather Conditions on Electricity Demand
-
-We want to consider how different weather conditions have an effect on the peak electricity demand. To do this we compare how the maximum peak electricity demand in the 2013-14 winter season would be affected if the weather conditions from other years had occurred. Below we see the plots for taking the wind, solar, and temperature conditions respectively from other years and calculating a new maximum annual demand for the 2013-14 winter season.
-
-```{r weather effect, eval=FALSE, echo=FALSE, fig.height=10, fig.width=20}
-# Q4: CHANGE IN MAXIMUM ANNUAL DEMAND WITH DIFFERENT WINTERS
-
-# Plotting maximum annual demand with different wind conditions
-wind <- ggplot(replaced_wind_df, aes(x = start_year, y = mad)) +
-  geom_point() +
-  geom_line() +
-  labs(title = "Variation in 2013/14 Maximum Annual Demand \nwith different Wind Conditions",
-       x = "Year",
-       y = "Maximum Annual Demand") +
-  scale_y_continuous(limits = c(53000, 56000))
-
-# Plotting maximum annual demand with different solar conditions
-solar <- ggplot(replaced_solar_df, aes(x = start_year, y = mad)) +
-  geom_point() +
-  geom_line() +
-  labs(title = "Variation in 2013/14 Maximum Annual Demand \nwith different Solar Conditions",
-       x = "Year",
-       y = "Maximum Annual Demand") +
-  scale_y_continuous(limits = c(53000, 56000))
-
-# Plotting maximum annual demand with different temperature conditions
-temp <- ggplot(replaced_temp_df, aes(x = start_year, y = mad)) +
-  geom_point() +
-  geom_line() +
-  labs(title = "Variation in 2013/14 Maximum Annual Demand \nwith different Temperature Conditions",
-       x = "Year",
-       y = "Maximum Annual Demand")
-
-# Display plots
-grid.arrange(wind, solar, temp, ncol = 3)
-```
-
-
-Altering wind conditions clearly has no effect on the maximum annual demand according to our model, but this is to be expected since wind is not a parameter we consider in our final model.
-
-There is also no significant effect on maximum annual demand when we change the solar conditions. This would suggest that solar capacity does not effect the maximum peak electricity demand but it is something we have concluded significant enough to include in our model. This may be because although solar capacity does have an impact, it does not significantly increase the average peak electricity demand across the year. It may be that solar has more of an effect when considering lower peak electricity demands. Intuitively this makes sense because using solar energy decreases overall electricity demand and so the solar capacity is having a larger impact on decreasing peak electricity demand than increasing it. Therefore, solar is not a factor to be considered when evaluating the maximum annual demand, as supported by the graph.
-
-Finally, the temperature conditions clearly have an effect on the maximum annual demand, suggesting the temperature conditions of a given year significantly impacts what the peak electricity demand in that year is. This aligns with what we would expect since electricity demands would understandably rise when it is very cold so a particularly cold winter would be expected to have a higher peak electricity demand. This further supports the idea that temperature conditions should be factored into any model predicting electrical usage and particularly when the focus of the model is for accommodating at times of high peak demand. If we know we are going to have a cold winter then it is sensible to predict higher electricity demand and it is important to be able to accommodate for this. The graph therefore supports our use of TE and TO in our model.
-
-Therefore, some weather conditions, namely temperature, have an effect on maximum annual demand whereas others, wind and solar capacity, do not.
-
-### Alternative to TE
-
-The plots in the exploratory analysis revealed a slight negative correlation between temperature and peak daily energy demand.
-
-To represent temperature, NESO uses the variable TE. 
-\begin{equation*}
-    \texttt{TE} = 0.5(\texttt{TE}(t-24) + \texttt{TO}(t)
-\end{equation*}
-where TO is the average temperature on a given date between 3pm and 6pm.
-
-In this section, we explore potential alternative measures to replace TE After evaluating these alternatives, we conclude that TE is the most effective and therefore retain it in our model.
-
-We consider the 4 following alternatives: 
-
-* Method 1: We tested a variable called DSS, which calculates the absolute difference between the 6 PM temperature and a chosen base temperature - in this case, the mean temperature across all years. The theory behind this alternative it allows the model to identify deviations from normal conditions at the peak usage time of 6pm.
-
-* Method 2: This involved using the temp data set to redefine the TO variable. A new variable was defined, $\text{new}_{\text{TO}}$ which is the average temperature between 5pm to 6pm on a given day. This was then used to define a new TE variable, denoted $\text{new}_{\text{TE}}$. The idea was that by shortening the time period to closer to 6pm, it would give a more accurate prediction of the energy demand at the peak usage time of 6pm. 
-* Method 3: This approach was similar to method 2, this time defining $\text{new}_{\text{TO}}$ as the average temperature between 1pm and 7pm on a given day. The theory behind this approach was to lengthen the time frame to average over, to give a better representation of the temperature throughout the afternoon and immediately after the peak energy usage time.
-
-* Method 4: We tested using two variables Max  and Min which are the maximum daily temperature and minimum daily temperature respectively. The theory behind this variable was that part of the day being  extremely cold or hot could influence behavior, such as turning on cooling or heating systems. These systems may still be running at 6pm, affecting peak demand. 
-
-To assess the alternative models we again consider the following metric scores:
-
-* $R^2$
-* Akaike Information Criterion (AIC)
-* Root Mean Square Error (RMSE)
-* Mean Dawid Sebastiani (MDS) 
-* Mean Interval score (MIS)
-
-We substituted TE with each alternative variable one by one. The results for each alternative model are displayed below. 
-
-```{r, Q5 Table,  eval=FALSE, echo=FALSE}
-
-chosen.R2 <- summary(chosen.mod)$adj.r.squared
-q5.mod1.R2 <- summary(q5.mod1)$adj.r.squared
-q5.mod2.R2 <- summary(q5.mod2)$adj.r.squared
-q5.mod3.R2 <- summary(q5.mod3)$adj.r.squared
-q5.mod4.R2 <- summary(q5.mod4)$adj.r.squared
-
-
-all.metrics <- bind_rows(
-  chosen.scores  %>% mutate(Method = "TE",       `$R^2$` = chosen.R2, AIC = AIC(chosen.mod)),
-  chosen.scores1 %>% mutate(Method = "Method 1", `$R^2$` = q5.mod1.R2, AIC = AIC(q5.mod1)),
-  chosen.scores2 %>% mutate(Method = "Method 2", `$R^2$` = q5.mod2.R2, AIC = AIC(q5.mod2)),
-  chosen.scores3 %>% mutate(Method = "Method 3", `$R^2$` = q5.mod3.R2, AIC = AIC(q5.mod3)),
-  chosen.scores4 %>% mutate(Method = "Method 4", `$R^2$` = q5.mod4.R2, AIC = AIC(q5.mod4))
-) %>%
-  select(Method, `$R^2$`, AIC, RMSE, MDS, MIS)
-
-# Print the table
-kable(all.metrics, caption = "TE Alternatives")
-
-```
-
-Our results showed that none of the four alternatives to TE were better in terms of the proportion of variance in the data that the models could explained, or in terms of prediction accuracy across the 3 different prediction scores. 
-
-The adjusted $R^2$ is higher for the original model compared to the alternative models. Furthermore, the AIC is lower in the original model compared with the alternative models. Therefore, each alternative variable results in a poorer model fit which explains less variability of the data. This suggests that TE remains the more suitable choice for capturing temperature effects.
-
-
 ## Model Limitations
 
 Despite the strengths of our final model, there are limitations that must be taken into account when interpreting our results.
@@ -590,7 +485,3 @@ Despite the strengths of our final model, there are limitations that must be tak
 
 Many of the variables are highly correlated with each other (e.g. TO vs TE). This is a drawback of the data we have been given.  
 
-
-# Conclusion
-
-In summary, we have developed a new model for NESO, based on linear regression, that generates realistic traces of daily peak demand. After initially inspecting the data, we investigated several models. We found that including year as a cubic term had the most significant effect on refining the model performance. Using TE instead of temperature further made a notable difference. Additionally, TE was found to be the best measure of temperature among several other alternatives investigated. The final model,  with an adjusted $R^2$ of 0.7779,  predicts demand with improved accuracy compared to the base model. To evaluate the model, we first checked the model assumptions and then further considered it’s predictive performance using a 24-fold cross validation scheme and several different predictive scores. In spite of the limitations, the model was found to have a strong predictive performance when tested on new data and as a result will aid NESO in their long term planning goals. 
