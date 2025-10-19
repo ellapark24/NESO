@@ -117,6 +117,61 @@ m.final <- lm(demand_gross ~ TE + solar_sarah + factor(WeekdayNum) + I(DSN^2) +
 
 formula.final <- formula(m.final)
 
+m.temp <- lm(demand_gross ~ temp_merra1 + solar_sarah + factor(WeekdayNum) + I(DSN^2) +
+               factor(Month) + factor(Year) + I(DSN^2):factor(Month), 
+             data = processed.data)
+
+m.to <- lm(demand_gross ~ TO + solar_sarah + factor(WeekdayNum) + I(DSN^2) +
+             factor(Month) + factor(Year) + I(DSN^2):factor(Month), 
+           data = processed.data)
+
+# -------------------------- Comparison of model -------------------------------
+comparison <- function(formulas, names, data){
+  
+  # Initialise a dataframe for the results
+  results <- data.frame(
+    Model = character(),
+    R_squared = numeric(),
+    Adjusted_R_squared = numeric(),
+    RMSE = numeric(),
+    AIC = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  # Loop over the models
+  for (i in 1:length(formulas)) {
+    
+    # Extract models and names from the inputted dataframe
+    model <- lm(formulas[[i]], data)
+    model_name <- names[i]
+    
+    # Calculate R-squared and Adjusted R-squared
+    model_summary <- summary(model)
+    r_squared <- model_summary$r.squared
+    adj_r_squared <- model_summary$adj.r.squared
+    
+    # Calculate RMSE (Root Mean Squared Error)
+    predictions <- predict(model, newdata = data)
+    mse <- mean((data[["demand_gross"]] - predictions)^2)
+    rmse <- sqrt(mse)
+    
+    # Calculate AIC
+    aic_value <- AIC(model)
+    
+    # Append the results to the data frame
+    results <- rbind(results, data.frame(
+      Model = model_name,
+      R_squared = r_squared,
+      Adjusted_R_squared = adj_r_squared,
+      RMSE = rmse,
+      AIC = aic_value
+    ))
+  }
+  # Return the comparison data frame
+  return(results)
+}
+
+# ------------------------------------------------------------------------------
 # -------------------------- Random 10-Fold Model ------------------------------
 
 set.seed(123)

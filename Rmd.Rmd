@@ -117,7 +117,7 @@ to_plot <- ggplot(processed.data, aes(x=TO, y=demand_gross)) +
 dsn_plot <- ggplot(processed.data, aes(x=DSN, y=demand_gross)) +
   geom_point(alpha=0.5) +
   geom_smooth(method="lm", formula = y ~ poly(x,2), color="red") +
-  labs(title="Average Demand vs Year", x="Days since November", y="Average Demand (MW)") +
+  labs(title="Average Demand vs DSN", x="Days since November", y="Average Demand (MW)") +
   theme(text = element_text(size = 16))  
 
 # Month vs demand
@@ -147,7 +147,7 @@ day_plot <- ggplot(processed.data, aes(x=factor(WeekdayNum), y=demand_gross, fil
 (wind_plot + solar_plot) / (temp_plot + to_plot) / (te_plot + dsn_plot) /  (month_plot + day_plot)   
   plot_annotation(title = "Exploratory Analysis of Demand Data", theme = theme(plot.title = element_text(size = 20, face = "bold")))
 ```
-```
+
 
 Key observations from the analysis indicate that wind has no clear correlation with average demand and was therefore removed from the model as it provides no predictive value. Most the solar data are concentrated between 0 and 0.05, with higher solar generation associated with lower average demand, suggesting an inverse relationship. This aligns with expectations, as increased sunlight reduces the need for lighting, lowering electricity demand. Temperature, TO and TE all show a negative linear correlation with average demand, suggesting that demand tends to decrease as temperature rises. This is intuitive since as warmer conditions generally reduce heating needs. TE shows the strongest negative effect and is considered the best temperature measure because it incorporates information from both today and the previous day. Its importance lies in averaging with the past day, capturing a lagged effect that may reflect customers updating heating settings with a delay. The days since november variable follows an overall quadratic distribution, but has a pronounced dip in December which suggests that an interaction between month and DSN should be considered in the model. Month has a clear effect on demand, with the highest levels observes in January and February and the lowest in November and March. Finally, day of the week is an important predictor to include in the model as demand is lower on weekends, highest on weekdays, with Monday through Thursday showing similar mean demand and a slight decline on Fridays. Combining weekdays and weekends reduce the resolution of these important differences. Year also has an impact on demand and will be included as a factor variable. However, this will be stripped out of the model by NESO, who will add their own year effect for future years.
 
@@ -162,6 +162,15 @@ We aim to fit a ordinary least-squares linear regression model of the form $$\ma
 * The errors are independent.
 * The errors have constant variance (homoscedasticity).
 
+### Hypothesis Testing
+
+To check whether a variable is significant in the model or not, we use the following hypothesis test about the model parameters.
+\begin{eqnarray*}
+    H_0&:& \beta_i = 0 \\
+    H_1&:& \beta_i \neq 0.
+\end{eqnarray*}
+using the test statistic $T = \frac{\hat{\beta}_i - \beta_0}{\hat{\sigma}_{\hat{\beta}_i}} \sim t_{n-p}$. The resulting p-value of the test gives the probability of observing a value as or more extreme than the observed test statistic given that $H_0$ is true. The model summary output gives the p-value of these tests for each of the model parameters. A high p-value suggests that we cannot reject the null hypothesis that $H_0$ is true, that is that the associated parameter in the model is equal to 0, and the variable has no statistically significant effect in the model.
+
 ### Adjusted R-squared
 
 The $R^2$ metric measures the proportion of variance explained by the linear model. Formally it is defined as 
@@ -174,19 +183,41 @@ where $\mu_i$ is the estimated value of $y_i$ by the model and $\bar{y}$ is the 
 \end{equation*}
 Models with a higher adjusted $R^2$ are preferable over models with a lower one, as this indicates that the model explains a higher proportion of the variability within the data. 
 
-### Hypothesis Testing
 
-To check whether a variable is significant in the model or not, we use the following hypothesis test about the model parameters.
-\begin{eqnarray*}
-    H_0&:& \beta_i = 0 \\
-    H_1&:& \beta_i \neq 0.
-\end{eqnarray*}
-using the test statistic $T = \frac{\hat{\beta}_i - \beta_0}{\hat{\sigma}_{\hat{\beta}_i}} \sim t_{n-p}$. The resulting p-value of the test gives the probability of observing a value as or more extreme than the observed test statistic given that $H_0$ is true. The model summary output gives the p-value of these tests for each of the model parameters. A high p-value suggests that we cannot reject the null hypothesis that $H_0$ is true, that is that the associated parameter in the model is equal to 0, and the variable has no statistically significant effect in the model. 
+### Akaike Information Criterion (AIC)
+
+The AIC is a metric used to compare the quality of a model for a given dataset. It balances model fit with model complexity by penalising the number of parameters included in the model. Formally, AIC is defined as
+\begin{equation*}
+AIC=2p-2\ln(L)
+\end{equation*}
+where $p$ is the number of parameters in the model and $L$ is the maximised value of the likelihood function.
+
+Lower AIC indicate a better balance between fit and model complexity. When comparing models, the model with the lowest AIC is generally preferred, as it explains the data well without including unnecessary parameters.
+
+## Model selection
+
+Based on the exploratory data analysis, the final model for predicting average demand was selected to capture the most important predictors and accounting for non-linearities and interactions identified in the data while balancing simplicity. The final mode is:
+
+..... (unsure how to write final model)
+
+Table here
+
+The `TE` variable was selected as the temperature predictor variable because it incorporates information from both the current and previous day, capturing potential lagged effects in demand. This choice was supported quantitatively. When comparing modes that differed only in the temperature variable, `TE` produced a higher $R^2$, lower RMSE and lower AIC indicating a better overall model fit and predictive performance.
+
+```{r TE, echo = FALSE}
+formulas <- list(m.temp, m.to, m.final)
+names <- c("Model with temp", "Model with TO", "Model with TE")
+
+# creating the comparison table
+comparison_df <- comparison(formulas, names, processed.data)
+colnames(comparison_df) <- c("Model", "$R^2$", "Adjusted $R^2$", "RMSE", "AIC")
+print(comparison_df)
+```
 
 
-## Model Selections
+Solar generation was included because higher solar output was associated with lower average demand and was statistically significant in the final model, $p<0.01$. Day of the week effects were modelled as a factor to account lower weekend demand and small variations across weekdays with all factor levels highly significant, $p<0.01$. The variable `DSN` (days since November) exhibited a quadratic relation with demand in the earlier analysis so $DSN^2$ was included to capture this non-linear trend. `Month` and `Year` were included as factor variables to account for seasonal and annual variation in demand. A pronounced dip in December motivated the inclusion of an interaction between `DSN^2` and `Month`, allowing the model to account for monthly variations in the quadratic effect and substantially improving the AIC (decrease of 1,846.95).
 
-
+While the inclusion of all two-way interactions followed by backwards selection yielded a slightly higher adjusted $R^2$, this model was chosen to favour simplicity, as the additional interaction terms contributed only marginal effects.
 
 ## Evaluation of Model
 
