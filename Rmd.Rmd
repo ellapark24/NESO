@@ -211,7 +211,7 @@ names <- c("Model with temp", "Model with TO", "Model with TE")
 # creating the comparison table
 comparison_df <- comparison(formulas, names, processed.data)
 colnames(comparison_df) <- c("Model", "$R^2$", "Adjusted $R^2$", "RMSE", "AIC")
-print(comparison_df)
+kable(comparison_df)
 ```
 
 

@@ -2,7 +2,7 @@
 
 
 packages <- c("ggplot2", "ecostats", "tidyverse", "patchwork", "caret", 
-              "gridExtra", "viridis", "rsample", "dplyr")
+              "gridExtra", "viridis", "rsample", "dplyr", "knitr", "kableExtra")
 lapply(packages, library, character.only = TRUE)
 
 # Read excel data files into R 
