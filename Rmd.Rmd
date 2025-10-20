@@ -195,7 +195,7 @@ kable(coef_table, digits = 3, caption = "Table 1: Regression Results")
 
 To assess model performance, we  first compare the $R^2$, adjusted $R^2$, AIC and RMSE of the final model to alternatives. In particular, we compare against 
 
-Model with no interactions: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \epsilon_i$$ and Model with all interactions: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i+ \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \beta_7 \text{TE:solar} + \\ \beta_8 \text{TE:month} + \beta_9 \text{solar:month} + \beta_{10} \text{wdaynumber:month} + \beta_{11} \text{DSN}^2:\text{month} + \epsilon_i$$
+Model with no interactions: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \epsilon_i$$ and backward selected interaction model: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i+ \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \beta_7 \text{TE:solar} + \\ \beta_8 \text{TE:month} + \beta_9 \text{solar:month} + \beta_{10} \text{wdaynumber:month} + \beta_{11} \text{DSN}^2:\text{month} + \epsilon_i$$
 
 ```{r Exploratory Analysis 2, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
 
