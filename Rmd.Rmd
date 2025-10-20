@@ -162,46 +162,22 @@ We aim to fit a ordinary least-squares linear regression model of the form $$\ma
 * The errors are independent.
 * The errors have constant variance (homoscedasticity).
 
-### Hypothesis Testing
+### Metrics
 
-To check whether a variable is significant in the model or not, we use the following hypothesis test about the model parameters.
-\begin{eqnarray*}
-    H_0&:& \beta_i = 0 \\
-    H_1&:& \beta_i \neq 0.
-\end{eqnarray*}
-using the test statistic $T = \frac{\hat{\beta}_i - \beta_0}{\hat{\sigma}_{\hat{\beta}_i}} \sim t_{n-p}$. The resulting p-value of the test gives the probability of observing a value as or more extreme than the observed test statistic given that $H_0$ is true. The model summary output gives the p-value of these tests for each of the model parameters. A high p-value suggests that we cannot reject the null hypothesis that $H_0$ is true, that is that the associated parameter in the model is equal to 0, and the variable has no statistically significant effect in the model.
+To check whether a variable is significant in the model or not, we use the following hypothesis test about the model parameters. A high p-value suggests that we cannot reject the null hypothesis that $H_0$ is true, that is that the associated parameter in the model is equal to 0, and the variable has no statistically significant effect in the model.
 
-### Adjusted R-squared
+The $R^2$ metric measures the proportion of variance explained by the linear model. Models with a higher adjusted $R^2$ are preferable over models with a lower one, as this indicates that the model explains a higher proportion of the variability within the data. 
 
-The $R^2$ metric measures the proportion of variance explained by the linear model. Formally it is defined as 
-\begin{equation*}
-    r^2 = 1 - \frac{\sum_{i}^{n}(y_i - \hat{\mu}_i)^2}{\sum_{i}^{n}(y_i - \overline{y})^2}
-\end{equation*}
-where $\mu_i$ is the estimated value of $y_i$ by the model and $\bar{y}$ is the sample mean of the data. The $R^2$ tends to overestimate how well a model is doing, and so to account for this we look at the adjusted $R^2$ metric which accounts for the number of parameters in the model.
-\begin{equation*}
-    r^2_{\text{adj}} = 1 - \frac{\frac{\sum_{i}^{n}(y_i - \hat{\mu}_i)^2}{(n-p)}} {\frac{\sum_{i}^{n}(y_i - \overline{y})^2}{(n-1)}}
-\end{equation*}
-Models with a higher adjusted $R^2$ are preferable over models with a lower one, as this indicates that the model explains a higher proportion of the variability within the data. 
+The root mean squared error (RMSE) is used to assess the predictive accuracy of the model. It measures the average magnitude of the residuals, with lower values indicating that the model's predictions are closer to the observed data.
 
-
-### Akaike Information Criterion (AIC)
-
-The AIC is a metric used to compare the quality of a model for a given dataset. It balances model fit with model complexity by penalising the number of parameters included in the model. Formally, AIC is defined as
-\begin{equation*}
-AIC=2p-2\ln(L)
-\end{equation*}
-where $p$ is the number of parameters in the model and $L$ is the maximised value of the likelihood function.
-
-Lower AIC indicate a better balance between fit and model complexity. When comparing models, the model with the lowest AIC is generally preferred, as it explains the data well without including unnecessary parameters.
+The AIC is a metric used to compare the quality of a model for a given dataset. It balances model fit with model complexity by penalising the number of parameters included in the model.Lower AIC indicate a better balance between fit and model complexity. When comparing models, the model with the lowest AIC is generally preferred, as it explains the data well without including unnecessary parameters.
 
 ## Model selection
 
 Based on the exploratory data analysis, the final model for predicting average demand was selected to capture the most important predictors and accounting for non-linearities and interactions identified in the data while balancing simplicity. The final model is:
 
-not sure if this is the best way to format it but thought I would add it in for now...
-
 \begin{eqnarray*}
- M_F:  y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}_i + \beta_6 \text{TE}_i  + \beta_7 \, \text{DSN}^2\text{:month} + \epsilon_i
+ M_F:  y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i  + \beta_7 \, \text{DSN}^2\text{:month} + \epsilon_i
 \end{eqnarray*}
 where $\epsilon_i \overset{\mathrm{iid}}\sim \mathcal{N}(0, \sigma^2)$.
 
@@ -215,11 +191,7 @@ names <- c("Model with temp", "Model with TO", "Model with TE")
 # creating the comparison table
 comparison_df <- comparison(formulas, names, processed.data)
 colnames(comparison_df) <- c("Model", "$R^2$", "Adjusted $R^2$", "RMSE", "AIC")
-<<<<<<< HEAD
-kable(comparison_df)
-=======
 kable(comparison_df, caption = "Model Performance Comparison")
->>>>>>> origin/main
 ```
 
 
