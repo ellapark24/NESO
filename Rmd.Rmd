@@ -212,50 +212,37 @@ kable(coef_table, digits = 3, caption = "Table 1: Regression Results")
 
 ## Evaluation of Model
 
-
+To evaluate our model we will first compare the $R^2$, adjusted $R^2$, AIC and RMSE of our model compared to other models. Where we compare against Model with no interactions: $y_i = \beta_0 + \beta_1 solar_i + \beta_2 wdaynumber_i + \beta_3month_i + \beta_4 year_i + \beta_5 DSN^2_i + \beta_6 TE_i + \epsilon_i$ and Model with all interactions: $y_i = \beta_0 + \beta_1 solar_i + \beta_2 wdaynumber_i + \beta_3month_i + \beta_4 year_i + \beta_5 DSN^2_i + \beta_6 TE_i + \beta_7 TE:solar + \beta_8 TE:month + \beta_9 solar:month + \beta_{10} wdaynumber:month + \beta_{11} DSN^2:month + \epsilon_i$.
 
 ```{r Exploratory Analysis 2, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
-# Q2: HOW WELL DOES THE MODEL FIT HISTORIC DATA
 
+formulas <- list(m.no_interactions, m.interactions, m.final)
+names <- c("Model with no interactions", "Model with all interactions", "Final Model")
 
-
-# Calculate Root Mean Squared Error (baseline model)
-rmse_m0 <- sqrt(mean((demand.data$demand_gross - predict(m0))^2))
-
-# Calculate Root Mean Squared Error (our model)
-rmse_finalmodel <- sqrt(mean((demand.data$demand_gross - predict(chosen.mod))^2))
-
-# Create the data frame
-table_data <- data.frame(
-  Model = c("$M_0$", "$M_F$"),
-  RMSE = c(rmse_m0, rmse_finalmodel),
-  "$R^2$" = c(0.4636, 0.7779),
-  check.names = FALSE
-)
-
-# Print the table
-kable(table_data, caption = "Model Performance Comparison")
+# creating the comparison table
+comparison_df <- comparison(formulas, names, processed.data)
+colnames(comparison_df) <- c("Model", "$R^2$", "Adjusted $R^2$", "RMSE", "AIC")
+kable(comparison_df, caption = "Model Performance Comparison")
 
 ```
+Here we can see that whilst the model with all interactions had the higher $R^2$, higher adjusted $R^2$ and lower RMSE, our final model with only one interaction term is still significantly better than the no interactions model and thats why we chose it as explained above. [Make this paragraph actually different from above maybe comparing the scores more between different models]
 
+To continue checking our model's performance we now examine the residuals to see if the underlying assumptions of the model are satisfied. This will help see whether the model provides a valid fit for our data.
 
-
-
-```{r Residuals, eval=FALSE, echo=FALSE, fig.height=16, fig.width=16}
+```{r Residuals, eval=TRUE, echo=FALSE, fig.height=16, fig.width=16}
 
 # Check Residuals
 par(mfrow = c(2, 2))
-plot(chosen.mod)
+plot(m.final)
 
 ```
-
-T
+The Residuals vs Fitted plot shows little change of variance with mean, so the constant variance assumption is upheld. The Q-Q Residuals plot the ordered standardised residuals against quantiles of a standard normal. The plot shows a slight deviation from normality with an S-shaped pattern which would suggest skewness in the residuals. However this impact is most likely due to sample size so by the central limit theorem, the sampling distribution will tend to normality even with this deviation. The values on the Scale-Location plot shows very slight heteroscedasticity (the variance of errors is not constant) because the red line has a very minor curve to it. However this won't be a major problem to our model as we have a larger sample size and look to predict using our model and not use it for inference. Finally, the residuals vs leverage plot gives us Cook’s distance, which measures the change in all model fitted values on omission of the data point in question. Here, it is not problematic as none of our points either reach Cook's distance or have a high leverage so we can conclude that there are no outliers that need investigating for our model.
 
 
 ```{r Actual vs Predicted Demand, eval=FALSE, echo=FALSE}
 
 #Plot Actual vs Predicted Demand
-ggplot(demand.data, aes(x=demand_gross, y=predict(chosen.mod))) +
+ggplot(processed.data, aes(x=demand_gross, y=predict(m.final))) +
   geom_point(alpha=0.6) +
   geom_abline(slope=1, intercept=0, color="red") +
   labs(title="Actual vs. Predicted Average Demand",

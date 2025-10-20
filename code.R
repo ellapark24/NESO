@@ -84,7 +84,11 @@ m.temp <- lm(demand_gross ~ temp_merra1 + solar_sarah + factor(WeekdayNum) + I(D
 m.to <- lm(demand_gross ~ TO + solar_sarah + factor(WeekdayNum) + I(DSN^2) +
              factor(Month) + factor(Year) + I(DSN^2):factor(Month), 
            data = processed.data)
+#--------------------------- Define Model & Formula ----------------------------
 
+m.interactions <- step(lm(demand_gross ~ (TE + solar_sarah + factor(WeekdayNum) + I(DSN^2) + factor(Month))^2 + factor(Year), data = processed.data), direction = "backward")
+
+m.no_interactions <- lm(demand_gross ~ TE + solar_sarah + factor(WeekdayNum) + I(DSN^2) + factor(Month) + factor(Year), data = processed.data)
 
 # -------------------------- Define Model & Formula  ---------------------------
 
