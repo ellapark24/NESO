@@ -68,46 +68,6 @@ processed.data <- data %>%
   ) %>%
   ungroup()
 
-comparison <- function(formulas, names, data){
-  
-  # Initialise a dataframe for the results
-  results <- data.frame(
-    Model = character(),
-    R_squared = numeric(),
-    Adjusted_R_squared = numeric(),
-    RMSE = numeric(),
-    stringsAsFactors = FALSE
-  )
-  
-  # Loop over the models
-  for (i in 1:length(formulas)) {
-    
-    # Extract models and names from the inputted dataframe
-    model <- lm(formulas[[i]], data)
-    model_name <- names[i]
-    
-    # Calculate R-squared and Adjusted R-squared
-    model_summary <- summary(model)
-    r_squared <- model_summary$r.squared
-    adj_r_squared <- model_summary$adj.r.squared
-    
-    # Calculate RMSE (Root Mean Squared Error)
-    predictions <- predict(model, newdata = data)
-    mse <- mean((data[["demand_gross"]] - predictions)^2)
-    rmse <- sqrt(mse)
-    
-    # Append the results to the data frame
-    results <- rbind(results, data.frame(
-      Model = model_name,
-      R_squared = r_squared,
-      Adjusted_R_squared = adj_r_squared,
-      RMSE = rmse
-    ))
-  }
-  # Return the comparison data frame
-  return(results)
-}
-
 
 # -------------------------- Define Model & Formula  ---------------------------
 
@@ -125,7 +85,17 @@ m.to <- lm(demand_gross ~ TO + solar_sarah + factor(WeekdayNum) + I(DSN^2) +
              factor(Month) + factor(Year) + I(DSN^2):factor(Month), 
            data = processed.data)
 
-# -------------------------- Comparison of model -------------------------------
+
+# -------------------------- Define Model & Formula  ---------------------------
+
+m.final <- lm(demand_gross ~ TE + solar_sarah + factor(WeekdayNum) + I(DSN^2) +
+                factor(Month) + factor(Year) + I(DSN^2):factor(Month), 
+              data = processed.data)
+
+formula.final <- formula(m.final)
+
+# ------------------------ Computing model scores ------------------------------
+
 comparison <- function(formulas, names, data){
   
   # Initialise a dataframe for the results
@@ -171,7 +141,35 @@ comparison <- function(formulas, names, data){
   return(results)
 }
 
-# ------------------------------------------------------------------------------
+
+compute_scores <- function(formula, data){
+  
+  # Extract models and names from the inputted dataframe
+  model <- lm(formula, data)
+  
+  # Calculate R-squared and Adjusted R-squared
+  model_summary <- summary(model)
+  r_squared <- model_summary$r.squared
+  adj_r_squared <- model_summary$adj.r.squared
+  
+  # Calculate RMSE (Root Mean Squared Error)
+  predictions <- predict(model, newdata = data)
+  mse <- mean((data[["demand_gross"]] - predictions)^2)
+  rmse <- sqrt(mse)
+  
+  # Append the results to the data frame
+  results <- data.frame(
+    R_squared = r_squared,
+    Adjusted_R_squared = adj_r_squared,
+    RMSE = rmse)
+  
+  
+  # Return the comparison data frame
+  return(results)
+}
+
+scores.final <- compute_scores(formula.final, processed.data)
+
 # -------------------------- Random 10-Fold Model ------------------------------
 
 set.seed(123)
@@ -204,50 +202,6 @@ p1 <- ggplot(data = kfold.pred, aes(x = obs, y = pred, colour = as.factor(Resamp
 
 
 # --------------------------- Add in year effect -------------------------------
-
-# Set training and test data 
-train.data <- processed.data %>% filter(Year <= as.character(2000))
-test.data <- processed.data %>% filter(Year %in% c("2001"))
-
-# # Compute Model and Prediction
-# train.model  <- lm(formula.final, data = train.data)
-# 
-# # Take out year effect from the trained model's matrix
-# terms <- attr(terms(train.model), "term.labels")
-# new_terms <- terms[terms != "factor(Year)"]
-# new_formula <- reformulate(new_terms, response = "demand_gross")
-# X.noyear <- model.matrix(new_formula, data = test.data)
-# 
-# # Take out year coefficient from the trained model
-# coefs <- coef(train.model)
-# coefs.noyear <- coefs[!grepl("factor\\(Year\\)", names(coefs))]
-# pred.noyear <- X.noyear %*% coefs.noyear
-# 
-# # Extract all coefficients from the full model
-# coefs.full <- coef(m.final)
-# 
-# # Extract the coefficient for the test year from the full model 
-# year.effect <- coefs.full["factor(Year)2001"]
-# 
-# # Add in year effect
-# pred.adjusted <- pred.noyear + year.effect
-# actual <- test.data$demand_gross
-# 
-# p2 <- ggplot(data = data.frame(actual, pred.adjusted), aes(x = actual, y = pred.adjusted)) +
-#   
-#   geom_point() +
-#   
-#   geom_abline(slope = 1, intercept = 0, color = "black") +
-#   
-#   labs(title = "Predicted vs. Actual Demand",
-#        
-#        x = "Actual Demand",
-#        
-#        y = "Predicted Demand") +
-#   
-#   scale_colour_discrete(name = "Training Set") +
-#   
-#   theme(text = element_text(size = 16))
 
 rolling.cv <- function(formula, data, start.year, end.year, year_col, alpha){
   
@@ -287,35 +241,30 @@ rolling.cv <- function(formula, data, start.year, end.year, year_col, alpha){
     year.effect <- coefs.full[paste0("factor(Year)", year + 1)]
     
     
+    # Compute predictions & observed values
+    pred.mean <- pred.noyear + year.effect
+    obs <- test.data$demand_gross
+    
+    # Compute prediction standard deviation
+    vcov.noyear <- vcov(train.model)[names(coefs.noyear), names(coefs.noyear)] # Variance Covariance matrix for the coefficients (without year)
+    var.mean <- rowSums((X.noyear %*% vcov.noyear) * X.noyear) # Variance of predicted mean values
+    var.residual <- sigma(train.model)^2 # Variance of model errors
+    pred.sd <- sqrt(var.mean + var.residual)
+    
+    # Compute prediction interval
+    pred.lwr <- pred.mean - qnorm(1 - alpha / 2) * pred.sd
+    pred.upr <- pred.mean + qnorm(1 - alpha / 2) * pred.sd
+    
     # Store predictions in a dataframe
     store.pred <- data.frame(
-      observed = test.data$demand_gross,
+      observed = obs,
       predictions = pred.noyear + year.effect,
-      test_set = year + 1
+      test_set = year + 1,
+      se = (obs - pred.mean)^2,
+      int = pred.upr - pred.lwr + 2/(alpha) * ((pred.lwr - obs) *
+                                                 (obs < pred.lwr) + (obs - pred.upr) * (obs > pred.upr)),
+      ds = ((obs - pred.mean) / pred.sd)^2 + 2 * log(pred.sd)
     )
-    
-    # prediction <- predict(train.model, newdata = test.data,
-    #                       se.fit = TRUE, interval = "prediction", level = 1 - alpha)
-    # 
-    # # Observed Values
-    # obs <- test.data$demand_gross
-    # 
-    # # Compute Prediction Results
-    # pred.mean <- prediction$fit[,1]
-    # pred.sd <- sqrt(prediction$se.fit^2 + prediction$residual.scale^2)
-    # pred.lwr <- prediction$fit[,2]  
-    # pred.upr <- prediction$fit[,3]  
-    # 
-    # # Compute Scores
-    # test.data$se <- (obs - pred.mean)^2
-    # test.data$int <- pred.upr - pred.lwr + 2/(alpha) * ((pred.lwr - obs) *
-    #                                                       (obs < pred.lwr) + (obs - pred.upr) * (obs > pred.upr))
-    # test.data$ds <-  ((obs - pred.mean) / pred.sd)^2 + 2 * log(pred.sd)
-    # 
-    # test.data$observed <- obs
-    # test.data$test.year <- year + 1
-    # test.data$mean <- pred.mean
-    
     
     
     # Store in data-frame
@@ -327,23 +276,48 @@ rolling.cv <- function(formula, data, start.year, end.year, year_col, alpha){
 
 crossvalid.final <- rolling.cv(formula = formula.final, data = processed.data, start.year = 2000, end.year = 2014, alpha = 0.05)
 
-view(crossvalid.final)
-
-p2 <- ggplot(data = crossvalid.final, aes(x = observed, y = predictions, colour = as.factor(test_set))) +
+cv.scores.final <- crossvalid.final %>%
   
-  geom_point() +
+  group_by(test_set) %>%
   
-  geom_abline(slope = 1, intercept = 0, color = "black") +
+  summarise(rmse = sqrt(mean(se)), avg.ds = mean(ds), avg.int = mean(int)) %>% # Mean per fold
   
-  labs(title = "Predicted vs. Actual Demand using Rolling Cross Validation",
-       
-       x = "Actual Demand",
-       
-       y = "Predicted Demand") +
-  
-  scale_colour_discrete(name = "Training Set") +
-  
-  theme(text = element_text(size = 16))
+  summarise(RMSE = mean(rmse), MDS = mean(avg.ds), MIS = mean(avg.int))
 
 
-p1 + p2
+# ---------------------- Cross Validation on other models ----------------------
+
+# Baseline model for comparison
+m1 <-  lm(demand_gross ~ 
+            temp_merra1 + wind_merra1 + solar_sarah + factor(WeekdayNum) + 
+            factor(Month) + factor(Year), data = processed.data)
+
+crossvalid.m1 <- rolling.cv(formula = formula(m1), data = processed.data, start.year = 2000, end.year = 2014, alpha = 0.05)
+
+cv.scores.m1 <- crossvalid.m1 %>%
+  
+  group_by(test_set) %>%
+  
+  summarise(rmse = sqrt(mean(se)), avg.ds = mean(ds), avg.int = mean(int)) %>% # Mean per fold
+  
+  summarise(RMSE = mean(rmse), MDS = mean(avg.ds), MIS = mean(avg.int))
+
+
+# More complex model for comparison
+m2 <-  step(lm(demand_gross ~ 
+                 (TE + solar_sarah + factor(WeekdayNum) + I(DSN^2) + 
+                    factor(Month))^2 + factor(Year), data = processed.data),
+            direction = "backward")
+
+
+crossvalid.m2 <- rolling.cv(formula = formula(m2), data = processed.data, start.year = 2000, end.year = 2014, alpha = 0.05)
+
+cv.scores.m2 <- crossvalid.m1 %>%
+  
+  group_by(test_set) %>%
+  
+  summarise(rmse = sqrt(mean(se)), avg.ds = mean(ds), avg.int = mean(int)) %>% # Mean per fold
+  
+  summarise(RMSE = mean(rmse), MDS = mean(avg.ds), MIS = mean(avg.int))
+
+

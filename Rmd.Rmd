@@ -76,7 +76,7 @@ Prior to fitting any models we examine the dataset used in our analysis. We cons
 
 We next examine the data visually to highlight any general trends and detect any anomalies. We use scatter plots below to examine how each predictor correlates with demand. 
 
-```{r Exploratory Analysis, eval=TRUE, echo=FALSE, fig.height=30, fig.width=20, message = 'false', results='hide'}
+```{r Exploratory Analysis, eval=TRUE, echo=FALSE, fig.height=30, fig.width=20, warning = 'false', message = 'false', results='hide'}
 
 # Wind vs Demand
 wind_plot <- ggplot(processed.data, aes(x=wind_merra1, y=demand_gross)) +
@@ -196,28 +196,47 @@ Lower AIC indicate a better balance between fit and model complexity. When compa
 
 ## Model selection
 
-Based on the exploratory data analysis, the final model for predicting average demand was selected to capture the most important predictors and accounting for non-linearities and interactions identified in the data while balancing simplicity. The final mode is:
+Based on the exploratory data analysis, the final model for predicting average demand was selected to capture the most important predictors and accounting for non-linearities and interactions identified in the data while balancing simplicity. The final model is:
 
-..... (unsure how to write final model)
+not sure if this is the best way to format it but thought I would add it in for now...
 
-Table here
+\begin{eqnarray*}
+ M_F:  y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}_i + \beta_6 \text{TE}_i  + \beta_7 \, \text{DSN}^2\text{:month} + \epsilon_i
+\end{eqnarray*}
+where $\epsilon_i \overset{\mathrm{iid}}\sim \mathcal{N}(0, \sigma^2)$.
+
 
 The `TE` variable was selected as the temperature predictor variable because it incorporates information from both the current and previous day, capturing potential lagged effects in demand. This choice was supported quantitatively. When comparing modes that differed only in the temperature variable, `TE` produced a higher $R^2$, lower RMSE and lower AIC indicating a better overall model fit and predictive performance.
 
-```{r TE, echo = FALSE}
+```{r TE, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 formulas <- list(m.temp, m.to, m.final)
 names <- c("Model with temp", "Model with TO", "Model with TE")
 
 # creating the comparison table
 comparison_df <- comparison(formulas, names, processed.data)
 colnames(comparison_df) <- c("Model", "$R^2$", "Adjusted $R^2$", "RMSE", "AIC")
+<<<<<<< HEAD
 kable(comparison_df)
+=======
+kable(comparison_df, caption = "Model Performance Comparison")
+>>>>>>> origin/main
 ```
 
 
 Solar generation was included because higher solar output was associated with lower average demand and was statistically significant in the final model, $p<0.01$. Day of the week effects were modelled as a factor to account lower weekend demand and small variations across weekdays with all factor levels highly significant, $p<0.01$. The variable `DSN` (days since November) exhibited a quadratic relation with demand in the earlier analysis so $DSN^2$ was included to capture this non-linear trend. `Month` and `Year` were included as factor variables to account for seasonal and annual variation in demand. A pronounced dip in December motivated the inclusion of an interaction between `DSN^2` and `Month`, allowing the model to account for monthly variations in the quadratic effect and substantially improving the AIC (decrease of 1,846.95).
 
 While the inclusion of all two-way interactions followed by backwards selection yielded a slightly higher adjusted $R^2$, this model was chosen to favour simplicity, as the additional interaction terms contributed only marginal effects.
+
+```{r results='asis', eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.height=6, fig.width=5}
+
+# Convert summary coefficients to a data frame
+coef_table <- summary(m.final)$coefficients
+
+# Create a nice clean table
+kable(coef_table, digits = 3, caption = "Table 1: Regression Results") 
+
+
+```
 
 ## Evaluation of Model
 
@@ -226,7 +245,7 @@ While the inclusion of all two-way interactions followed by backwards selection 
 ```{r Exploratory Analysis 2, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
 # Q2: HOW WELL DOES THE MODEL FIT HISTORIC DATA
 
-library(knitr)
+
 
 # Calculate Root Mean Squared Error (baseline model)
 rmse_m0 <- sqrt(mean((demand.data$demand_gross - predict(m0))^2))
@@ -276,37 +295,98 @@ ggplot(demand.data, aes(x=demand_gross, y=predict(chosen.mod))) +
 
 
 
+
 ## Cross Validation:
 
 ### Methodology
-To prevent overfitting and compare model generalizability, we use cross-validation. In particular, in this report, we apply expanding window cross-validation to evaluate our model. This involves fitting the model on an initial training set from 1991 up to 2000 and then testing the model on the data set including the following year. The metrics defined below are then obtained. 
+To assess model generalizability, we analysed our model using expanding window cross-validation. However, our model includes year as a factor which would be updated by NESO each year based on their subjectively estimated year effect. To mimic this process we altered our cross validation method as follows:
+
+Firstly we fit the model on an initial training set from 1991 up to 2000. Then any the year effect is removed from the trained model. Using this trained model, we compute the 'yearless predictions' for 2001. To mimic adding back in a year effect (as NESO would) we assumed a known year effect, using the coefficient estimated from the full dataset. This was added to the yearless predictions' to compute our final predictions. We then compare these with the observed data for 2001 and obtain the following metrics: 
 
 * Squared error: $\text{SE} = (y - \hat{y}_F)^2$
 * Interval score: $\text{IS}(\alpha) = U_F - L_F + \frac{2}{\alpha} (L_F - y) \mathcal{1}\{y \leq L_F\} + \frac{2}{\alpha} (y - U_F) \mathcal{1}\{y > L_F\}$ where $L_F$ and $U_F$ denote the lower and upper bound of the prediction interval with coverage probability $\alpha$.
 
 * Dawid-Sebastiani: $\text{DS} = \frac{(y - \hat{y}_F)^2}{\sigma^2_F} + \log(\sigma^2_F)$
 
+We then repeat this process, expanding the training set by one year and moving the test set forward one year. 
 
-We then repeat this process, expanding the training set set forward 1 year and moving the test set forward by one year. We use this method as it mimics the real-world forecasting this will be used for and so ensures we maintain the chronological order of the data. Furthermore, it allows it to be validated across a broad range of the historical data. 
+There are drawbacks to this method: for example by assuming the known year effect from the full model, we leak information about the test year into the predictions. However we still choose this method for two reasons: Firstly, it still minimises the disrupt to the chronilogical strucutre of the data. Secondly, expanding the training set at each step, incorporates more historical data helping the model capture long-term, recurring seasonal and weekly trends more effectively.  
 
-We can interpret each of the metrics defined above as follows:
-The squared error (SE) is a measure of distance of the predicted values from the actual values. The Dawid-Sebastiani score is similar to the SE but also includes a penalty for overly high or low predicted variance. It accounts for both the accuracy of the prediction and the confidence associated with it. 
-The interval score is based on a specified prediction interval. We use a 95% prediction interval.This 95% interval means that, if the model is correct, there's a 95% chance that the next observed value will fall within the predicted range. The interval score measures accuracy by:
+### Results
 
-* Rewarding narrower intervals (higher precision),
-* Penalizing when the observed value falls outside the interval, and,
-* Increasing the penalty the further the observation is from the interval bounds.
+The observed vs predicted values from our cross validation are plotted in Figure 2. The points lie scattered around the $y=x$ line indicating accuracy in predictions. It is important to note that there are some points that stray above the $y=x$ line. However these occur at lower demand levels. Since NESO are particularly interested in accuracy at higher demand levels where shortfalls are likely to occur, this indicates that the model still remains well-suited for accurately estimating average daily demand, especially at high levels.
 
-### Assessing Overfitting for the Chosen Model
-To assess whether the chosen model is overfitting, we first recall earlier that we looked at the root mean squared error (RMSE) based on the full set of data - i.e. the RMSE of the fitted values. We now compare this with the RMSE derived from the Cross Validation in the table below. 
+```{r Cross Validation Plots, eval=TRUE, echo=FALSE, fig.height=5, fig.width=7, message=FALSE, warning=FALSE}
+
+p2 <- ggplot(data = crossvalid.final, aes(x = observed, y = predictions, colour = as.factor(test_set))) +
+  
+  geom_point() +
+  
+  geom_abline(slope = 1, intercept = 0, color = "black") +
+  
+  labs(title = "Figure 2: Predicted vs Actual Demand",
+       
+       x = "Actual Demand",
+       
+       y = "Predicted Demand") +
+  
+  scale_colour_discrete(name = "Training Set") +
+  
+  theme(text = element_text(size = 16))
 
 
-```{r, Assessing Overfitting, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+p2
+
+```
+
+Using cross validation we find the following predictive scores.
+
+```{r RMSE Table, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+
+
+cv.scores.table <- cv.scores.final %>%
+                            mutate(Model = "Final") %>%
+                            select(Model, everything()) %>%
+                            rename(
+                              "Mean Dawid Sebastiani Score" = MDS,
+                              "Mean Interval Score" = MIS
+                            )
+
+
+# Print the table
+kable(cv.scores.table, caption = "Predictive Scores for Final Model")
+
+```
+
+To interpret these results its useful to compare it to a baseline model $M_1$ and a more complex model $M_2$:
+
+```{r Other RMSE Table, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+
+
+cv.other.scores <- bind_rows(cv.scores.m1, cv.scores.m2) %>%
+                            mutate(Model = c("$M_1$", "$M_2$")) %>%
+                            select(Model, everything())%>%
+                            rename(
+                              "Mean Dawid Sebastiani Score" = MDS,
+                              "Mean Interval Score" = MIS
+                            )
+
+# Print the table
+kable(cv.other.scores, caption = "Predictive Scores Comparison by Model")
+
+```
+
+
+Observe that each score for the final model is lower compared to $M_1$. This suggests higher accuracy in predictions as well as confidence associated with these predictions. On the other hand observe that the scores for the model $M_2$ with several interactions are marginally smaller than our final model. This indicates that simplifying the model the interest of practicality is justified.
+
+To assess whether our final model is overfitting, we compare the RMSE based on the full set of data with the RMSE derived from the Cross Validation:
+
+```{r, Assessing Overfitting, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 # Create the data frame
-rmse_values <- c("Fitted RMSE" = rmse_finalmodel, "Cross Validation RMSE" = chosen.scores$RMSE)
+rmse.values <- c("Fitted RMSE" = scores.final$RMSE, "Cross Validation RMSE" = cv.scores.final$RMSE)
 
 # Convert to a data frame and transpose
-RMSE.data <- as.data.frame(t(rmse_values))
+RMSE.data <- as.data.frame(t(rmse.values))
 
 
 # Print the table
@@ -314,141 +394,9 @@ kable(RMSE.data, caption = "How the model performs on trained data vs new data")
 
 ```
 
-The fitted RMSE is slightly lower than the cross-validation RMSE, likely due to smaller estimation and prediction sets in cross-validation. However, the difference is small relative to the data scale and not significant, suggesting the model does not perform significantly better on the data it was trained on compared to new data. Therefore we conclude the chosen model is not overfitting.
+The fitted RMSE is slightly lower than the cross-validation RMSE, likely due to smaller estimation and prediction sets in cross-validation. However, the difference is small relative to the data scale and not significant, suggesting the model does not perform significantly better on the data it was trained on compared to new data. Therefore we conclude the final model is not overfitting.
 
 
-### Comparing Models
-
-We next use cross-validation to compare the basic model with our chosen model. For each model, we plot predicted demand against observed demand, with color indicating the fold the data belongs to. Ideally, points should align with the black line $y=x$, indicating accurate predictions.
-
-```{r Model Comparison, eval=FALSE, echo=FALSE, fig.height=10, fig.width=20, message=FALSE, warning=FALSE}
-chosen.crossvalid <- chosen.crossvalid %>% mutate(day.type = ifelse(wdayindex %in% c(0, 6), "Weekend", "Weekday"))
-c1 <- ggplot(basic.crossvalid, aes(observed, mean, colour = as.factor(fold))) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0, color = "black") +
-  labs(title = "Predicted vs. Actual Demand",
-       x = "Actual Demand",
-       y = "Predicted Demand") +
-  scale_colour_discrete(name = "Fold Year") +
-  theme(text = element_text(size = 16))
 
 
-c2 <- ggplot(chosen.crossvalid, aes(observed, mean, colour = as.factor(fold))) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0, color = "black") +
-  labs(title = "Predicted vs. Actual Demand",
-       x = "Actual Demand",
-       y = "Predicted Demand") +
-  scale_colour_discrete(name = "Fold Year") + 
-  theme(text = element_text(size = 16))
-
-(c1 + c2)
-
-```
-
-
-For the basic model (left), the plot shows a wide dispersion around $y=x$, forming a broad parallelogram shape. We see significant overestimation at lower observed demand levels and underestimation at higher levels. This indicates the model lacks complexity to capture key patterns.
-
-In contrast, the chosen model (right) aligns more closely with $y=x$. While we still see some overestimation and underestimation, the predictions are generally more accurate. However, there is a scatter of points above the line which are significant overestimations. This is a limitation of the model. However in general these are scattered and more occasional. On the other hand the model avoids large underestimation and generally maintains consistency around the $y = x$ line. This highlights that the chosen model better captures demand patterns and generalizes more effectively. 
-
-The predictive scores, printed in the table below, further indicate that the chosen model forecasts peak demand levels more accurately. 
-
-```{r RMSE Table, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
-
-all.scores <- bind_rows(basic.scores, chosen.scores) %>%
-                            mutate(Model = c("Basic", "Final")) %>%
-                            select(Model, everything())
-
-# Print the table
-kable(all.scores, caption = "Predictive Scores Comparison by Model")
-
-```
-
-Firstly, the RMSE for the basic model is $3702.12$ while for the final model is $2462.88$. These both seem quite large but we can consider this in terms of the scale of the data. For example, considering it as a percentage relative to the mean peak electricity demand, $49294.32$, we find the RMSE for the basic model is $\frac{3702.12}{49294.32} * 100 = 7.51\%$ and the RMSE for the final model is $\frac{2462.88}{49294.32} * 100 = 4.99\%$. Furthermore, the Dawid Sebastiani score and the interval score are both lower for the final model compared to the basic model. These results indicates that the final model has a stronger performance than the basic model.
-
-
-### Analysis of Prediction Performance by Month
-
-To measure the prediction accuracy of the final model across all of the months, the following 3 prediction scores: 
-
-* Squared error score 
-* Dawid Sebastiani score 
-* Interval score 
-
-These were computed using the 24-fold cross validation scheme as defined earlier. The average of each of these scores, grouped by month, are displayed in the graphs below.
-
-```{r Q3, eval=FALSE, echo=FALSE, fig.height=7, fig.width=20, message=FALSE, warning=FALSE}
-# BAR PLOTS
-
-# MSE by month 
-b1 <- ggplot(chosen.mse.df, aes(x = month.name, y = MSE, fill = month.name)) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none") +
-  coord_cartesian(ylim = c(0, max(chosen.mse.df$MSE)+10000)) + 
-  labs(title = "MSE by Month",
-       x = "Month",
-       y = "MSE") +
-  theme(text = element_text(size = 16))
-
-# Interval Score by month 
-b2 <- ggplot(chosen.int.df, aes(x = month.name, y = INT, fill = month.name)) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none") +
-  coord_cartesian(ylim = c(0, max(chosen.int.df$INT)+ 500)) +
-  labs(title = "Average Interval Score by Month",
-       x = "Month",
-       y = "Average Interval Score") +
-  theme(text = element_text(size = 16))
-
-# Dawid-Sebastiani Score by month 
-b3 <- ggplot(chosen.ds.df, aes(x = month.name, y = DS, fill = month.name)) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none") +
-  coord_cartesian(ylim = c(0, 18.5)) +
-  labs(title = "Average DS Score by Month",
-       x = "Month",
-       y = "Average DS Score") +
-  theme(text = element_text(size = 16))
-
-(b1 + b2 + b3)
-
-```
-
-It is clear from all three scores that the prediction accuracy of the model is not consistent across all months. The model makes the least accurate predictions for the month of December, as highlighted by the fact that the prediction score for this month is the highest across all three scores. This may be due to more variation in energy usage in December, due to disruption to standard working hours in the holiday/festive season. Energy usage may increase for example due to Christmas lights. 
-
-The model makes the most accurate predictions for the month of February, as highlighted by the fact that the prediction score for this month is the lowest across all three scores. 
-
-### Analysis of Prediction Performance by Day Type
-
-We next investigate how well the final model predicts for weekdays vs weekends. To do this we first plot the predicted values against observed demand for the weekend and weekdays individually.
-
-```{r Weekday vs Weekend, eval=FALSE, echo=FALSE, fig.height=10, fig.width=20, message=FALSE, warning=FALSE}
-
-ggplot(chosen.crossvalid, aes(observed, mean)) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0, color = "blue") +
-  labs(title = "Predicted vs. Actual Demand",
-       x = "Actual Demand",
-       y = "Predicted Demand") +
-  facet_wrap(~day.type) + 
-  theme(text = element_text(size = 16))
-
-
-```
-
-
-Observe that for the weekend (right) the points mostly align closely with $y=x$ with a slight underestimation as demand increases. On the other hand for weekdays (left), while most points align closely with $y=x$ for the high demand levels, as demand decreases the values are more scattered. In particular, there is slight underestimation of demand and some significant overestimations of demand. This trend makes sense, as we saw during data exploration that weekdays tend to have higher demand levels. As a result, low demand levels are relatively uncommon, making them harder to predict accurately. Ideally, however, the model would be able to account for weekdays where the demand was uncommonly low or weekend where demand was uncommonly high. This limitation of the model is discussed further in the limitations section.
-
-
-## Model Limitations
-
-Despite the strengths of our final model, there are limitations that must be taken into account when interpreting our results.
-
-* Firstly, it is clear that our model overestimates the peak electricity demand in the lower tails, when the peak demand is relatively low. However, NESO has expressed that overestimating is less of a priority for them than failing to meet high peak demand, making this less of a concern.
-
-* As mentioned above, if the actual demand is low on a weekday, the model is more likely to predict demand inaccurately. While this makes sense, since in general the demand is higher on weekdays, ideally the model would be able to account for this. A potential way of adapting the model to account for this could be considering day-type as a factor rather than weekday index. 
-
-* As previously mentioned, the residuals of our model are not normally distributed. However this is the least important assumption as we can appeal to the Central Limit Theorem as the size of the sample grows. 
-
-Many of the variables are highly correlated with each other (e.g. TO vs TE). This is a drawback of the data we have been given.  
 
