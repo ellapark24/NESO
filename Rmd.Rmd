@@ -1,5 +1,5 @@
 ---
-title: "Modelling Avergae Electricity Demand in Great Britain"
+title: "Modelling Average Electricity Demand in Great Britain"
 author: "Ella Park, Rosie Crookes, Kieran Marguerie de Rotrou"
 output:
   html_document:
@@ -41,7 +41,8 @@ source("code.R")
 ```
 
 # Executive Summary
- 
+
+This report enables NESO to better understand and forecast long-term electricity demand. Using ordinary least squares, we identified key temporal and weather based predictors that influence average daily demand. Valuing simplicity, we chose our model both for practical use and predictive ability.
 
 # Data and Exploratory Analysis
 
@@ -50,14 +51,14 @@ Prior to fitting any models we examine the dataset used in our analysis. We cons
 - $\texttt{wind_merra}$: Average capacity factor of wind generation
 - $\texttt{solar_sarah}$: Average capacity factor of solar generation
 - $\texttt{temp_merra1}$: Average temperature 
-- $\texttt{wdayindex}$: Day of the week
-- $\texttt{month}$: Month
-- $\texttt{year}$: Year
-- $\texttt{DNS}$: Number of days since November
+- $\texttt{wdayindex}$: Day of the week - included as a factor variable
+- $\texttt{month}$: Month - included as a factor variable
+- $\texttt{year}$: Year - included as a factor variable. However, this will be stripped out of the model by NESO, who will add their own year effect for future years.
+- $\texttt{DSN}$: Number of days since November
 - $\texttt{TO}$:  Average temperature from 3 PM – 6 PM on each day
 - $\texttt{TE}$:  Average of $\texttt{TO}$ at 6 PM and $\texttt{TE}$ at 6 PM on the previous day. The $\texttt{TE}$ for 1 November 1991 was taken to be 11.37 degrees celsius.
 
-We visually inspected scatter plots of each predictor against demand to correlations and potential anomalies.
+The figures and observations from our data exploration are recorded below.
 
 ```{r Exploratory Analysis, eval=TRUE, echo=FALSE, fig.height=30, fig.width=20, warning = 'false', message = 'false', results='hide'}
 
@@ -65,43 +66,49 @@ We visually inspected scatter plots of each predictor against demand to correlat
 wind_plot <- ggplot(processed.data, aes(x=wind_merra1, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(9)[1]) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Peak Demand vs Wind Capacity", x="Wind Capacity Factor", y="Peak Demand (MW)") +
-  theme(text = element_text(size = 16))  
+  labs(title="Average Demand vs Wind Capacity", x="Wind Capacity Factor", y="Average Demand (MW)",
+       caption = "Figure 1: Wind generation showed no clear correlation with demand.") +
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
 
 # Solar vs Demand
 solar_plot <- ggplot(processed.data, aes(x=solar_sarah, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(9)[6]) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Peak Demand vs Solar Capacity", x="Solar Capacity Factor", y="Peak Demand (MW)") +
-  theme(text = element_text(size = 16))
+  labs(title="Average Demand vs Solar Capacity", x="Solar Capacity Factor", y="Average Demand (MW)",
+       caption="Figure 2: Solar generation exhibits an inverse relationship ") +
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))
 
 # Temp vs Demand- shows negative correlation
 temp_plot <- ggplot(processed.data, aes(x=temp_merra1, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(9)[8]) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Average Demand vs Temperature", x="Temperature (°C)", y="Average Demand (MW)") +
-  theme(text = element_text(size = 16))  
+  labs(title="Average Demand vs Temperature", x="Temperature (°C)", y="Average Demand (MW)",
+       caption="Figure 3: Shows a negative correlation with demand as expected.") +
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20)) 
 
 # TE vs Demand - shows negative correlation
 te_plot <- ggplot(processed.data, aes(x=TE, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(9)[4]) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Average Demand vs TE", x="TE (°C)", y="Average Demand (MW)") +
-  theme(text = element_text(size = 16))  
+  labs(title="Average Demand vs TE", x="TE (°C)", y="Average Demand (MW)", 
+       caption="Figure 4: Shows a negative correlation with demand as expected.") +
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
 
 # TO vs Demand
 to_plot <- ggplot(processed.data, aes(x=TO, y=demand_gross)) +
   geom_point(alpha=0.5, color=viridis(9)[9]) +
   geom_smooth(method="lm", color="red") +
-  labs(title="Average Demand vs TO", x="TO (°C)", y="Average Demand (MW)") +
-  theme(text = element_text(size = 16))  
+  labs(title="Average Demand vs TO", x="TO (°C)", y="Average Demand (MW)",
+       caption="Figure 5: Shows a negative correlation with demand as expected.") +
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
 
 # dsn vs Demand - shows negative correlation
 dsn_plot <- ggplot(processed.data, aes(x=DSN, y=demand_gross)) +
   geom_point(alpha=0.5) +
   geom_smooth(method="lm", formula = y ~ poly(x,2), color="red") +
-  labs(title="Average Demand vs DSN", x="Days since November", y="Average Demand (MW)") +
-  theme(text = element_text(size = 16))  
+  labs(title="Average Demand vs DSN", x="Days since November", y="Average Demand (MW)",
+       caption="Figure 6: Follows a quadratic distribution, with a dip in December.") +
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20, hjust = 0))  
 
 # Month vs demand
 month_plot <- ggplot(processed.data, aes(x=factor(Month, levels = c(10, 11, 12, 1, 2)), y=demand_gross, fill=factor(Month))) +
@@ -109,10 +116,12 @@ month_plot <- ggplot(processed.data, aes(x=factor(Month, levels = c(10, 11, 12, 
   geom_boxplot(width=0.2, color="black", alpha=0.7) +  
   scale_fill_viridis_d(option="viridis") +    
   scale_x_discrete(labels=c("November", "December", "Janurary", "February", "March")) +
-  labs(title="Peak Demand Distribution by Month", x="Month", y="Peak Demand (MW)") +
+  labs(title="Average Demand Distribution by Month", x="Month", y="Average Demand (MW)", 
+       caption = "Figure 7: Highest levels observed in January and lowest in November and March.") +
   theme_bw() +
   guides(fill=FALSE) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
 
 # Day of week
 day_plot <- ggplot(processed.data, aes(x=factor(WeekdayNum), y=demand_gross, fill=factor(WeekdayNum))) +
@@ -120,25 +129,29 @@ day_plot <- ggplot(processed.data, aes(x=factor(WeekdayNum), y=demand_gross, fil
   geom_boxplot(width=0.2, color="black", alpha=0.7) +  
   scale_fill_viridis_d(option="viridis") + 
   scale_x_discrete(labels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")) +
-  labs(title="Peak Demand by Day of the Week", x="Day of Week", y="Peak Demand (MW)") +
+  labs(title="Average Demand by Day of the Week", x="Day of Week", y="Average Demand (MW)",
+       caption="Figure 8: Lower demand on weekends and higher demand on weekdays.") +
   theme_bw() +
   guides(fill=FALSE) + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
 
+# # Year vs Demand - shows negative correlation
+# year_plot <- ggplot(processed.data, aes(x=Year, y=demand_gross)) +
+#   geom_point(alpha=0.5) +
+#   geom_smooth(method="lm", color="red") +
+#   labs(title="Average Demand vs Year", x="Year", y="Average Demand (MW)",
+#        caption="Figure 9: Year has a strong correlation ") +
+#   
+#   theme(text = element_text(size = 16))  
 
 # Arrange in a grid
 (wind_plot + solar_plot) / (temp_plot + to_plot) / (te_plot + dsn_plot) /  (month_plot + day_plot)   
-  plot_annotation(title = "Exploratory Analysis of Demand Data", theme = theme(plot.title = element_text(size = 20, face = "bold")))
+  plot_annotation(title = "Exploratory Analysis of Demand Data", theme = theme(plot.title = element_text(size = 20, face = "bold")))+
+  theme(text = element_text(size = 16))  
 ```
 
 
-Wind generation showed no clear correlation with demand and was therefore excluded from further modelling as it provides no predictive value. In contrast, solar generation exhibited an inverse relationship with demand. This aligns with expectations, as increased sunlight reduces the need for lighting, lowering electricity demand. 
-
-Temperature variables all showed a negative correlation with demand. This is intuitive since as warmer conditions generally reduce heating needs. TE shows the strongest negative effect and is considered the best temperature measure because it incorporates a lagged effect that may reflect customers updating heating settings with a delay.
-
-The DSN variable follows a quadratic distribution, but has a pronounced dip in December. This suggests that an interaction between month and DSN should be considered in the model.
-
-Month has a clear effect on demand, with the highest levels observes in January and lowest in November and March. Day of the week is an important predictor to include in the model as demand is lower on weekends, highest on weekdays. However, combining weekdays and weekends reduce the resolution of important ... differences. Year also has an impact on demand and will be included as a factor variable. However, this will be stripped out of the model by NESO, who will add their own year effect for future years.
 
 # Model fitting and cross-validation results
 
@@ -160,12 +173,11 @@ Variable significance is assessed using hypothesis test on model parameters, whe
 Based on the exploratory data analysis, the final model was selected to capture the most important predictors and accounting for non-linearities and interactions while balancing simplicity:
 
 \begin{eqnarray*}
- M_F:  y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i  + \beta_7 \, \text{DSN}^2\text{:month} + \epsilon_i
+ M_F:  y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i  + \beta_7 \, \text{DSN_i}^2\text{:month_i} + \epsilon_i
 \end{eqnarray*}
 where $\epsilon_i \overset{\mathrm{iid}}\sim \mathcal{N}(0, \sigma^2)$.
 
-
-The `TE` variable was selected as the temperature measure because it incorporates information from both the current and previous day, capturing lagged effects in demand.  When compared  to alternatives, the model using `TE` produced a higher $R^2$, lower RMSE and lower AIC indicating a better overall model fit and predictive performance.
+The `TE` variable was selected as the temperature measure because it incorporates information from both the current and previous day, capturing lagged effects in demand.  When compared  to alternatives, the model using `TE` produced a higher $R^2$, lower RMSE and lower AIC indicating a better overall model fit and predictive performance. The `DSN` variable exhibited a quadratic relationship with demand, so $DSN^2$ was included. `Month` and `Year` were included as factor variables to account for annual variation. A distinct dip in demand in December motivated the inclusion of an interaction between `DSN^2` and `Month`, allowing the model to capture monthly variations in the quadratic effect and substantially improving the AIC (decrease of 1,846.95). 
 
 ```{r TE, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 formulas <- list(m.temp, m.to, m.final)
@@ -177,8 +189,7 @@ colnames(comparison_df) <- c("Model", "$R^2$", "Adjusted $R^2$", "RMSE", "AIC")
 kable(comparison_df, caption = "Model Performance Comparison")
 ```
 
-
-Solar generation was included as higher solar output was associated with lower average demand and remained statistically significant in the final model, ($p<0.01$). Day-of-the week effects were modelled as a factor to capture the reduction weekend demand and small variations across weekdays, with all factor levels highly significant, ($p<0.01$). The `DSN` (days since November) variable exhibited a quadratic relationship with demand, so $DSN^2$ was included to capture this non-linearity. `Month` and `Year` were included as factor variables to account for seasonal and annual variation. A distinct dip in demand in December motivated the inclusion of an interaction between `DSN^2` and `Month`, allowing the model to capture monthly variations in the quadratic effect and substantially improving the AIC (decrease of 1,846.95).
+The remaining variables were included due to trends seen in exploratory analysis and as they are statistically significant with most p-values lower than $p<0.01$.
 
 ```{r results='asis', eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.height=6, fig.width=5}
 
@@ -193,9 +204,9 @@ kable(coef_table, digits = 3, caption = "Table 1: Regression Results")
 
 ## Evaluation of Model
 
-To assess model performance, we  first compare the $R^2$, adjusted $R^2$, AIC and RMSE of the final model to alternatives. In particular, we compare against 
+<!-- To assess model performance, we  first compare the $R^2$, adjusted $R^2$, AIC and RMSE of the final model to alternatives. We compare against;  -->
 
-Model with no interactions: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \epsilon_i$$ and backward selected interaction model: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i+ \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \beta_7 \text{TE:solar} + \\ \beta_8 \text{TE:month} + \beta_9 \text{solar:month} + \beta_{10} \text{wdaynumber:month} + \beta_{11} \text{DSN}^2:\text{month} + \epsilon_i$$
+<!-- Model with no interactions: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \epsilon_i$$ and backward selected interaction model: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i+ \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \beta_7 \text{TE:solar}_i + \\ \beta_8 \text{TE:month}_i + \beta_9 \text{solar:month}_i + \beta_{10} \text{wdaynumber:month_}i + \beta_{11} \text{DSN}^2:\text{month}_i + \epsilon_i$$ -->
 
 ```{r Exploratory Analysis 2, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
 
@@ -209,9 +220,9 @@ kable(comparison_df, caption = "Model Performance Comparison")
 
 ```
 
-Although the model including all two-way interactions achieved the highest $R^2$, adjusted $R^2$ and lowest RMSE, the improvement over the final model was marginal. In contrast, the model without interactions performed worse across all metrics, with a substantially higher RMSE and poorer AIC. This indicates that the inclusion of the single interaction term between `DSN^2` and `Month` captures the dominant interaction effect without introducing unnecessary complexity. Therefore, the selected model offers a balance between predictive performance and interpretability, retaining nearly all the benefit of the more complex model while remaining more practical to use and explain.
+<!-- Although the model including all two-way interactions achieved the highest $R^2$, adjusted $R^2$ and lowest RMSE, the improvement over the final model was marginal. In contrast, the model without interactions performed worse across all metrics, with a substantially higher RMSE and poorer AIC. This indicates that the inclusion of the single interaction term between `DSN^2` and `Month` captures the dominant interaction effect without introducing unnecessary complexity. Therefore, the selected model offers a balance between predictive performance and interpretability, retaining nearly all the benefit of the more complex model while remaining more practical to use and explain. -->
 
-To further assess model performance, we examine the residuals to check whether the underlying assumptions are satisfied, ensuring the model provides a valid fit to the data.
+We examine the residuals to check whether the underlying assumptions are satisfied, ensuring the model provides a valid fit to the data.
 
 ```{r Residuals, eval=TRUE, echo=FALSE, fig.height=16, fig.width=16}
 
@@ -220,7 +231,7 @@ par(mfrow = c(2, 2))
 plot(m.final)
 
 ```
-The Residuals vs Fitted plot shows that the variance remains fairly constant, supporting the homoscedacity assumption.. The Q-Q plot shows a slight deviation from normality with an S-shaped pattern suggesting slight skewness. However, given the large sample size, the central limit theorem ensures that the sampling distribution remains approximately normal. The Scale-Location plot shows minimal heteroscedasticity with only a slight curve in the red line. However this isn't too concerning given the larger sample size and focus on prediction rather than inference. Finally, the residuals vs leverage plot indicates no problematic points, as none exhibit high leverage or Cook's distance suggesting no influential outliers.
+The Residuals vs Fitted plot shows that the variance remains fairly constant, supporting the homoscedacity assumption. The Q-Q plot shows a slight deviation from normality with an S-shaped pattern suggesting slight skewness. However, given the large sample size, the central limit theorem ensures the sampling distribution remains approximately normal. The Scale-Location plot shows minimal heteroscedasticity with only a slight curve in the line. This is not concerning given the large sample size and predictive focus. Finally, the residuals vs leverage plot indicates no problematic points, as none exhibit high leverage or Cook's distance suggesting no outliers.
 
 
 ```{r Actual vs Predicted Demand, eval=FALSE, echo=FALSE}
@@ -244,7 +255,7 @@ ggplot(processed.data, aes(x=demand_gross, y=predict(m.final))) +
 ### Methodology
 To assess model generalizability, we used expanding window cross-validation. Since, our model includes year as a factor, which would be updated by NESO annually based on their estimated year effect, we altered our cross validation method as follows:
 
-Firstly we fit the model on an initial training set from 1991 up to 2000. Then any the year effect is removed from the trained model. Using this trained model, we compute the 'yearless predictions' for 2001. To mimic adding back in a year effect (as NESO would) we assumed a known year effect, using the coefficient estimated from the full dataset. This was added to the yearless predictions' to compute our final predictions. We then compare these with the observed data for 2001 and obtain the following metrics: 
+Firstly we fit the model on an initial training set from 1991 up to 2000. Then the year effect is removed from the trained model. Using this, we compute the 'yearless predictions' for 2001. To mimic adding back in a year effect we assumed a known year effect, using the coefficient estimated from the full dataset. This was added to the 'yearless predictions' to compute our final predictions. We then compare these with the observed data for 2001 and obtain the following metrics: 
 
 * Squared error: $\text{SE} = (y - \hat{y}_F)^2$
 * Interval score: $\text{IS}(\alpha) = U_F - L_F + \frac{2}{\alpha} (L_F - y) \mathcal{1}\{y \leq L_F\} + \frac{2}{\alpha} (y - U_F) \mathcal{1}\{y > L_F\}$ where $L_F$ and $U_F$ denote the lower and upper bound of the prediction interval with coverage probability $\alpha$.
@@ -252,8 +263,6 @@ Firstly we fit the model on an initial training set from 1991 up to 2000. Then a
 * Dawid-Sebastiani: $\text{DS} = \frac{(y - \hat{y}_F)^2}{\sigma^2_F} + \log(\sigma^2_F)$
 
 We then repeat this process, expanding the training set by one year and moving the test set forward one year. 
-
-There are drawbacks to this method: for example by assuming the known year effect from the full model, we leak information about the test year into the predictions. However we still choose this method for two reasons: Firstly, it still minimises the disrupt to the chronilogical strucutre of the data. Secondly, expanding the training set at each step, incorporates more historical data helping the model capture long-term, recurring seasonal and weekly trends more effectively.  
 
 ### Results
 
@@ -282,32 +291,14 @@ p2
 
 ```
 
-Using cross validation we find the following predictive scores.
+Using cross validation we find the following predictive scores for our final model and a basic model:
 
-```{r RMSE Table, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
-
-
-cv.scores.table <- cv.scores.final %>%
-                            mutate(Model = "Final") %>%
-                            select(Model, everything()) %>%
-                            rename(
-                              "Mean Dawid Sebastiani Score" = MDS,
-                              "Mean Interval Score" = MIS
-                            )
-
-
-# Print the table
-kable(cv.scores.table, caption = "Predictive Scores for Final Model")
-
-```
-
-To interpret these results its useful to compare it to a baseline model $M_1$ and a more complex model $M_2$:
 
 ```{r Other RMSE Table, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 
 
-cv.other.scores <- bind_rows(cv.scores.m1, cv.scores.m2) %>%
-                            mutate(Model = c("$M_1$", "$M_2$")) %>%
+cv.other.scores <- bind_rows(cv.scores.final, cv.scores.m1) %>%
+                            mutate(Model = c("$M_F$", "$M_{B}$")) %>%
                             select(Model, everything())%>%
                             rename(
                               "Mean Dawid Sebastiani Score" = MDS,
@@ -315,14 +306,14 @@ cv.other.scores <- bind_rows(cv.scores.m1, cv.scores.m2) %>%
                             )
 
 # Print the table
-kable(cv.other.scores, caption = "Predictive Scores Comparison by Model")
+kable(cv.other.scores, caption = "Predictive Scores for Final and Baseline Model")
 
 ```
 
 
-Each  predictive score for the final model is lower than $M_1$, suggesting higher accuracy in predictions as well as confidence associated with these predictions. While the more complex model $M_2$ with several interactions has slightly lower scores than the final mode, the difference is marginal, supporting the choice of a simpler, more practical model.
+Each  predictive score for the final model is lower for $M_F$, suggesting higher accuracy in predictions as well as confidence associated with these predictions. 
 
-To evaluate potential overfitting, we compare the RMSE based on the full set of data with the RMSE from the Cross Validation:
+To evaluate potential overfitting, we compare the RMSE based on the full dataset with the RMSE from the Cross Validation:
 
 ```{r, Assessing Overfitting, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 # Create the data frame
@@ -337,8 +328,9 @@ kable(RMSE.data, caption = "How the model performs on trained data vs new data")
 
 ```
 
-The fitted RMSE is slightly lower than the cross-validation RMSE, likely reflecting the smaller estimation and prediction sets in cross-validation. However, the difference is minor relative to the scale of the data, indicating that the model performs consistently on both training and new data. This suggests that the final model is not overfitting.
+To see that the final model is not overfitting observe that the fitted RMSE is greater than the Cross Validation RMSE. This is unusual however could be explained due to the averaging over the 14 test sets. Also note the difference is minor relative to the scale of the data, indicating that the model performs consistently on both training and new data. 
 
+Next consider limitations to our method: by assuming the known year effect from the full model, we leak information about the test year into the predictions. We still choose this method for two reasons: Firstly, it still minimises the disruption to the chronological structure of the data. Secondly, expanding the training set at each step, incorporates more historical data helping the model capture long-term, recurring monthly and weekly trends more effectively. 
 
 
 
