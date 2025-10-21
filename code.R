@@ -10,7 +10,7 @@ original.data <- read_csv("20161213_uk_wind_solar_demand_temperature_SCS2.csv")
 data <- read_csv("20161213_uk_wind_solar_demand_temperature_SCS2.csv")
 
 
-############################ Data Preprocessing ############################
+# ---------------------------- Data Preprocessing ------------------------------
 
 # Extract month, week, year, etc. from Local_DateTime column
 data <- data %>%
@@ -174,36 +174,6 @@ compute_scores <- function(formula, data){
 
 scores.final <- compute_scores(formula.final, processed.data)
 
-# -------------------------- Random 10-Fold Model ------------------------------
-
-set.seed(123)
-folds <- createFolds(data$demand_gross, k = 10, list = TRUE, returnTrain = TRUE)
-
-train.control <- trainControl(method = "cv", number = 10, savePredictions = "final")  
-
-train.model <- train(formula.final, data = processed.data,
-                     method = "lm",           
-                     trControl = train.control)
-
-kfold.pred <- train.model$pred
-kfold.results <- train.model$results
-
-p1 <- ggplot(data = kfold.pred, aes(x = obs, y = pred, colour = as.factor(Resample))) +
-  
-  geom_point() +
-  
-  geom_abline(slope = 1, intercept = 0, color = "black") +
-  
-  labs(title = "Predicted vs. Actual Demand using Random Cross Validation",
-       
-       x = "Actual Demand",
-       
-       y = "Predicted Demand") +
-  
-  scale_colour_discrete(name = "Training Set") +
-  
-  theme(text = element_text(size = 16))
-
 
 # --------------------------- Add in year effect -------------------------------
 
@@ -278,8 +248,10 @@ rolling.cv <- function(formula, data, start.year, end.year, year_col, alpha){
   return(scores)
 }
 
+# Apply cross validation to final model
 crossvalid.final <- rolling.cv(formula = formula.final, data = processed.data, start.year = 2000, end.year = 2014, alpha = 0.05)
 
+# Summarise cross validation scores for final model
 cv.scores.final <- crossvalid.final %>%
   
   group_by(test_set) %>%
@@ -296,8 +268,10 @@ m1 <-  lm(demand_gross ~
             temp_merra1 + wind_merra1 + solar_sarah + factor(WeekdayNum) + 
             factor(Month) + factor(Year), data = processed.data)
 
+# Apply cross validation to baseline model
 crossvalid.m1 <- rolling.cv(formula = formula(m1), data = processed.data, start.year = 2000, end.year = 2014, alpha = 0.05)
 
+# Summarise cross validation scores for baseline model
 cv.scores.m1 <- crossvalid.m1 %>%
   
   group_by(test_set) %>%
@@ -314,9 +288,11 @@ m2 <-  step(lm(demand_gross ~
             direction = "backward")
 
 
+# Apply cross validation to more complex model
 crossvalid.m2 <- rolling.cv(formula = formula(m2), data = processed.data, start.year = 2000, end.year = 2014, alpha = 0.05)
 
-cv.scores.m2 <- crossvalid.m1 %>%
+# Summarise cross validation scores for more complex model
+cv.scores.m2 <- crossvalid.m2 %>%
   
   group_by(test_set) %>%
   
