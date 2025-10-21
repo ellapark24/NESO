@@ -42,9 +42,9 @@ source("code.R")
 
 # Executive Summary
 
-This report enables NESO to better understand and forecast long-term electricity demand. Using ordinary least squares, we identified key temporal and weather based predictors that influence average daily demand. Valuing simplicity, we chose our model both for practical use and predictive ability.
+The main aim of this study is to predict average daily electricity demand to enable NESO to ensure a reliable supply. Forecasting is performed using an ordinary least squares linear regression model. This is selected by identifying key temporal and weather based predictors as well as considering important metrics such as $R^2$ and AIC. The model is then evaluated for it’s practicality and predictive ability using cross validation. We ultimately conclude, the model accurately predicts average daily demand while remaining simple and practical.
 
-# Data and Exploratory Analysis
+# Data Analysis and Exploration
 
 Prior to fitting any models we examine the dataset used in our analysis. We consider the following predictor variables for our linear model: 
 
@@ -56,9 +56,9 @@ Prior to fitting any models we examine the dataset used in our analysis. We cons
 - $\texttt{year}$: Year - included as a factor variable. However, this will be stripped out of the model by NESO, who will add their own year effect for future years.
 - $\texttt{DSN}$: Number of days since November
 - $\texttt{TO}$:  Average temperature from 3 PM – 6 PM on each day
-- $\texttt{TE}$:  Average of $\texttt{TO}$ at 6 PM and $\texttt{TE}$ at 6 PM on the previous day. The $\texttt{TE}$ for 1 November 1991 was taken to be 11.37 degrees celsius.
+- $\texttt{TE}$:  Average of $\texttt{TO}$ at 6 PM and $\texttt{TE}$ at 6 PM on the previous day ($\texttt{TE}$ for 1 November 1991 taken as 11.37 degrees celsius).
 
-The figures and observations from our data exploration are recorded below.
+Figures and observations from our data exploration are recorded below.
 
 ```{r Exploratory Analysis, eval=TRUE, echo=FALSE, fig.height=30, fig.width=20, warning = 'false', message = 'false', results='hide'}
 
@@ -136,48 +136,35 @@ day_plot <- ggplot(processed.data, aes(x=factor(WeekdayNum), y=demand_gross, fil
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
 
-# # Year vs Demand - shows negative correlation
-# year_plot <- ggplot(processed.data, aes(x=Year, y=demand_gross)) +
-#   geom_point(alpha=0.5) +
-#   geom_smooth(method="lm", color="red") +
-#   labs(title="Average Demand vs Year", x="Year", y="Average Demand (MW)",
-#        caption="Figure 9: Year has a strong correlation ") +
-#   
-#   theme(text = element_text(size = 16))  
-
 # Arrange in a grid
 (wind_plot + solar_plot) / (temp_plot + to_plot) / (te_plot + dsn_plot) /  (month_plot + day_plot)   
   plot_annotation(title = "Exploratory Analysis of Demand Data", theme = theme(plot.title = element_text(size = 20, face = "bold")))+
   theme(text = element_text(size = 16))  
 ```
 
+# Model Selection and Evaluation
 
-
-# Model fitting and cross-validation results
-
-## Metrics & Linear Models
-
-We aim to fit a ordinary least-squares linear regression model of the form $$\mathbf{y} = X \boldsymbol{\beta} + \boldsymbol{\epsilon}$$ assuming 
+We fit an ordinary least-squares linear regression model: $$\mathbf{y} = X \boldsymbol{\beta} + \boldsymbol{\epsilon}$$ assuming 
 
 * Linearity of model parameters. 
-* The errors, $\boldsymbol{\epsilon}$, are normally distributed. 
-* The errors are independent.
-* The errors have constant variance (homoscedasticity).
+* Errors, $\boldsymbol{\epsilon}$, are normally distributed. 
+* Errors are independent.
+* Errors have constant variance (homoscedasticity).
 
-### Metrics
+## Metrics
 
-Variable significance is assessed using hypothesis test on model parameters, where a high p-value indicates no statistically significant effect in the model. The $R^2$ metric measures the proportion of variance explained by the linear model. Models with a higher adjusted $R^2$ are preferable over models with a lower one, as this indicates that the model explains a higher proportion of the variability within the data. Predictive accuracy is assessed through root mean squared error (RMSE). It measures the average magnitude of the residuals, with lower values indicating that the model's predictions are closer to the observed data. The AIC is used to compare the quality of a model balancing model fit with complexity by penalising the number of parameters included in the model. A model with the lowest AIC is generally preferred, as it explains the data well without including unnecessary parameters.
+Variable significance is assessed through hypothesis testing model parameters, where a high p-value indicates no statistically significant effect in the model. The $R^2$ metric measures the proportion of variance explained with models with a higher adjusted $R^2$ generally preferred, as this indicates that the model explains a higher proportion of the variability within the data. Predictive accuracy is assessed through root mean squared error (RMSE). It measures the average magnitude of the residuals, with lower values indicating that the model's predictions are closer to the observed data. The AIC is used to balance model fit with complexity by penalising the number of parameters included in the model. A model with lower AIC is preferred, as it explains the data well without including unnecessary parameters.
 
 ## Model selection
 
-Based on the exploratory data analysis, the final model was selected to capture the most important predictors and accounting for non-linearities and interactions while balancing simplicity:
+Based on the exploratory analysis, the final model was selected to capture key predictors and account for non-linearities and interactions while balancing simplicity:
 
 \begin{eqnarray*}
  M_F:  y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i  + \beta_7 \, \text{DSN_i}^2\text{:month_i} + \epsilon_i
 \end{eqnarray*}
 where $\epsilon_i \overset{\mathrm{iid}}\sim \mathcal{N}(0, \sigma^2)$.
 
-The `TE` variable was selected as the temperature measure because it incorporates information from both the current and previous day, capturing lagged effects in demand.  When compared  to alternatives, the model using `TE` produced a higher $R^2$, lower RMSE and lower AIC indicating a better overall model fit and predictive performance. The `DSN` variable exhibited a quadratic relationship with demand, so $DSN^2$ was included. `Month` and `Year` were included as factor variables to account for annual variation. A distinct dip in demand in December motivated the inclusion of an interaction between `DSN^2` and `Month`, allowing the model to capture monthly variations in the quadratic effect and substantially improving the AIC (decrease of 1,846.95). 
+The `TE` variable was selected as the temperature measure because it incorporates both the current and previous day information, capturing lagged effects. Models using `TE` produced a higher $R^2$, lower RMSE and lower AIC indicating a better overall model fit and predictive performance. The `DSN` variable exhibited a quadratic relationship with demand, so $DSN^2$ was included. `Month` and `Year` were included as factor variables to account for annual variation. A distinct dip in demand in December motivated the inclusion of an interaction between `DSN^2` and `Month`, allowing the model to capture monthly variations in the quadratic effect and substantially improving the AIC by 1,846.95. 
 
 ```{r TE, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 formulas <- list(m.temp, m.to, m.final)
@@ -189,7 +176,7 @@ colnames(comparison_df) <- c("Model", "$R^2$", "Adjusted $R^2$", "RMSE", "AIC")
 kable(comparison_df, caption = "Model Performance Comparison")
 ```
 
-The remaining variables were included due to trends seen in exploratory analysis and as they are statistically significant with most p-values lower than $p<0.01$.
+The remaining variables were included due to trends seen in exploratory analysis and as they are statistically significant, mostly with $p<0.01$.
 
 ```{r results='asis', eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE, fig.height=6, fig.width=5}
 
@@ -198,31 +185,11 @@ coef_table <- summary(m.final)$coefficients
 
 # Create a nice clean table
 kable(coef_table, digits = 3, caption = "Table 1: Regression Results") 
-
-
 ```
 
-## Evaluation of Model
+## Model Evaluation
 
-<!-- To assess model performance, we  first compare the $R^2$, adjusted $R^2$, AIC and RMSE of the final model to alternatives. We compare against;  -->
-
-<!-- Model with no interactions: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \epsilon_i$$ and backward selected interaction model: $$y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3\text{month}_i + \beta_4 \text{year}_i+ \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \beta_7 \text{TE:solar}_i + \\ \beta_8 \text{TE:month}_i + \beta_9 \text{solar:month}_i + \beta_{10} \text{wdaynumber:month_}i + \beta_{11} \text{DSN}^2:\text{month}_i + \epsilon_i$$ -->
-
-```{r Exploratory Analysis 2, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
-
-formulas <- list(m.no_interactions, m.interactions, m.final)
-names <- c("Model with no interactions", "Model with all interactions", "Final Model")
-
-# creating the comparison table
-comparison_df <- comparison(formulas, names, processed.data)
-colnames(comparison_df) <- c("Model", "$R^2$", "Adjusted $R^2$", "RMSE", "AIC")
-kable(comparison_df, caption = "Model Performance Comparison")
-
-```
-
-<!-- Although the model including all two-way interactions achieved the highest $R^2$, adjusted $R^2$ and lowest RMSE, the improvement over the final model was marginal. In contrast, the model without interactions performed worse across all metrics, with a substantially higher RMSE and poorer AIC. This indicates that the inclusion of the single interaction term between `DSN^2` and `Month` captures the dominant interaction effect without introducing unnecessary complexity. Therefore, the selected model offers a balance between predictive performance and interpretability, retaining nearly all the benefit of the more complex model while remaining more practical to use and explain. -->
-
-We examine the residuals to check whether the underlying assumptions are satisfied, ensuring the model provides a valid fit to the data.
+The residuals were examined to check the underlying assumptions are satisfied, ensuring the model provides a valid fit to the data.
 
 ```{r Residuals, eval=TRUE, echo=FALSE, fig.height=16, fig.width=16}
 
@@ -247,12 +214,9 @@ ggplot(processed.data, aes(x=demand_gross, y=predict(m.final))) +
 ```
 
 
+# Cross Validation:
 
-
-
-## Cross Validation:
-
-### Methodology
+## Methodology
 To assess model generalizability, we used expanding window cross-validation. Since, our model includes year as a factor, which would be updated by NESO annually based on their estimated year effect, we altered our cross validation method as follows:
 
 Firstly we fit the model on an initial training set from 1991 up to 2000. Then the year effect is removed from the trained model. Using this, we compute the 'yearless predictions' for 2001. To mimic adding back in a year effect we assumed a known year effect, using the coefficient estimated from the full dataset. This was added to the 'yearless predictions' to compute our final predictions. We then compare these with the observed data for 2001 and obtain the following metrics: 
@@ -264,9 +228,8 @@ Firstly we fit the model on an initial training set from 1991 up to 2000. Then t
 
 We then repeat this process, expanding the training set by one year and moving the test set forward one year. 
 
-### Results
+## Predictive Ability and Simplicity
 
-The observed vs predicted values from our cross validation are plotted in Figure 2. The points lie scattered around the $y=x$ line indicating accurate predictions. A few points lie above the line, however these occur at lower demand levels. Since NESO prioritises accuracy at higher demand levels where shortfalls are more likely to occur, the model remains well-suited for estimating average daily demand, particularly during periods of high demand.
 
 ```{r Cross Validation Plots, eval=TRUE, echo=FALSE, fig.height=5, fig.width=7, message=FALSE, warning=FALSE}
 
@@ -291,8 +254,7 @@ p2
 
 ```
 
-Using cross validation we find the following predictive scores for our final model and a basic model:
-
+Using cross validation we find the following predictive scores for our final model as well as a basic model and more complex model:
 
 ```{r Other RMSE Table, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 
@@ -311,7 +273,7 @@ kable(cv.other.scores, caption = "Predictive Scores for Final and Baseline Model
 ```
 
 
-Each  predictive score for the final model is lower for $M_F$, suggesting higher accuracy in predictions as well as confidence associated with these predictions. 
+Each  predictive score for the final model is lower for $M_F$ than $M_B$, suggesting higher accuracy in predictions as well as confidence associated with these predictions. However, the more complex model $M_C$ achieves only marginally better scores, suggesting that a simpler, more practical model is preferable.
 
 To evaluate potential overfitting, we compare the RMSE based on the full dataset with the RMSE from the Cross Validation:
 
@@ -330,7 +292,14 @@ kable(RMSE.data, caption = "How the model performs on trained data vs new data")
 
 To see that the final model is not overfitting observe that the fitted RMSE is greater than the Cross Validation RMSE. This is unusual however could be explained due to the averaging over the 14 test sets. Also note the difference is minor relative to the scale of the data, indicating that the model performs consistently on both training and new data. 
 
-Next consider limitations to our method: by assuming the known year effect from the full model, we leak information about the test year into the predictions. We still choose this method for two reasons: Firstly, it still minimises the disruption to the chronological structure of the data. Secondly, expanding the training set at each step, incorporates more historical data helping the model capture long-term, recurring monthly and weekly trends more effectively. 
+# Limitations
+Next consider limitations to our method and model: 
+
+By assuming the known year effect from the full model, we leak information about the test year into the predictions. We still choose this method for two reasons: Firstly, it still minimises the disruption to the chronological structure of the data. Secondly, expanding the training set at each step, incorporates more historical data helping the model capture long-term, recurring monthly and weekly trends more effectively.
+
+Secondly consider the observed vs predicted values from our cross validation  in Figure 2. While the points lie scattered around the 
+$y=x$ line indicating accurate predictions, a  few points lie above the line. However these occur at lower demand levels and since NESO prioritises accuracy at higher demand levels where shortfalls are more likely to occur, the model remains well-suited for its purpose. 
+
 
 
 
