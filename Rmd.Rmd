@@ -1,6 +1,6 @@
 ---
 title: "Modelling Average Electricity Demand in Great Britain"
-author: "Ella Park, Rosie Crookes, Kieran Marguerie de Rotrou"
+author: "Ella Park (s2311400), Rosie Crookes (s2333530), Kieran Marguerie de Rotrou (s2536961)"
 output:
   html_document:
     number_sections: no
@@ -10,7 +10,7 @@ header-includes:
   - \newcommand{\bm}[1]{\boldsymbol{#1}}
   - \newcommand{\mat}[1]{\begin{bmatrix}#1\end{bmatrix}}
 ---
-
+#### Word count: 1092
 ```{r setup, include=FALSE}
 # Modify this setup code chunk to set options
 # or add extra packages etc if needed.
@@ -42,11 +42,11 @@ source("code.R")
 
 # Executive Summary
 
-The main aim of this study is to predict average daily electricity demand to enable NESO to ensure a reliable supply. Forecasting is performed using an ordinary least squares linear regression model. This is selected by identifying key temporal and weather based predictors as well as considering important metrics such as $R^2$ and AIC. The model is then evaluated for it’s practicality and predictive ability using cross validation. We ultimately conclude, the model predicts average daily demand accurately while remaining simple and practical.
+The aim of this study is to predict average daily electricity demand to enable NESO to ensure a reliable supply. Forecasting is performed using an ordinary least squares linear regression model. This is selected by identifying key temporal and weather based predictors as well as considering important metrics such as $R^2$ and AIC. The model is then evaluated for it’s practicality and predictive ability using cross validation. We ultimately conclude, the model predicts average demand accurately while remaining simple and practical.
 
 # Data Analysis and Exploration
 
-Prior to fitting any models we examine the dataset used in our analysis. We consider the following predictor variables for our linear model: 
+Prior to fitting models we examine the dataset used in our analysis. We consider the following predictor variables for our linear model: 
 
 - $\texttt{wind_merra}$: Average capacity factor of wind generation
 - $\texttt{solar_sarah}$: Average capacity factor of solar generation
@@ -290,7 +290,7 @@ kable(cv.other.scores, caption = "Table 3: Predictive Scores for Final, Baseline
 
 Each  predictive score for the final model is lower for $M_F$ than $M_B$, suggesting higher accuracy in predictions as well as confidence associated with these predictions. However, the more complex model $M_C$ achieves only marginally better scores, suggesting that a simpler, more practical model is preferable.
 
-To evaluate potential overfitting, we compare the RMSE based on the full dataset with the RMSE from the Cross Validation:
+To see that the final model is not overfitting, observe that the fitted RMSE based on the full dataset, is greater than the Cross Validation RMSE.
 
 ```{r, Assessing Overfitting, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 # Create the data frame
@@ -305,7 +305,7 @@ kable(RMSE.data, caption = "Table 4: How the model performs on trained data vs n
 
 ```
 
-To see that the final model is not overfitting observe that the fitted RMSE is greater than the Cross Validation RMSE. This is unusual however could be explained due to the averaging over the 14 test sets. Also note the difference is minor relative to the scale of the data, indicating that the model performs consistently on both training and new data. 
+This is unusual however could be explained due to the averaging over the 14 test sets. Also note the difference is minor relative to the scale of the data, indicating that the model performs consistently on both training and new data. 
 
 # Limitations
 Next consider limitations to our method and model: 
@@ -316,5 +316,7 @@ Secondly consider the observed vs predicted values from our cross validation  in
 $y=x$ line indicating accurate predictions, a  few points lie above the line. However these occur at lower demand levels and since NESO prioritises accuracy at higher demand levels where shortfalls are more likely to occur, the model remains well-suited for its purpose. 
 
 
-
+```{r code=readLines("code.R"), eval=FALSE, echo=TRUE}
+# Do not change this code chunk
+```
 
