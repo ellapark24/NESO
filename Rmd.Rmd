@@ -224,8 +224,8 @@ p2 <- ggplot(data = crossvalid.final, aes(x = observed, y = predictions, colour 
   geom_point() +
   geom_abline(slope = 1, intercept = 0, color = "black") +
   labs(title = "Figure 9: Predicted vs Actual Demand",
-       x = "Actual Demand",
-       y = "Predicted Demand") +
+       x = "Actual Average Demand (MW)",
+       y = "Predicted Average Demand (MW)") +
   scale_colour_discrete(name = "Test Set") +
   theme(text = element_text(size = 16))
 p2
