@@ -1016,7 +1016,6 @@ processed.data &lt;- data %&gt;%
   ) %&gt;%
   ungroup()
 
-
 # -------------------------- Define Model &amp; Formula  ---------------------------
 
 m.final &lt;- lm(demand_gross ~ TE + solar_sarah + factor(WeekdayNum) + I(DSN^2) +

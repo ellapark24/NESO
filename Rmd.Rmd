@@ -200,20 +200,6 @@ plot(m.final)
 ```
 The Residuals vs Fitted plot shows that the variance remains fairly constant, supporting the homoscedacity assumption. The Q-Q plot shows a slight deviation from normality with an S-shaped pattern suggesting slight skewness. However, given the large sample size, the central limit theorem ensures the sampling distribution remains approximately normal. The Scale-Location plot shows minimal heteroscedasticity with only a slight curve in the line. This is not concerning given the large sample size and predictive focus. Finally, the residuals vs leverage plot indicates no problematic points, as none exhibit high leverage or Cook's distance suggesting no outliers.
 
-
-```{r Actual vs Predicted Demand, eval=FALSE, echo=FALSE}
-
-#Plot Actual vs Predicted Demand
-ggplot(processed.data, aes(x=demand_gross, y=predict(m.final))) +
-  geom_point(alpha=0.6) +
-  geom_abline(slope=1, intercept=0, color="red") +
-  labs(title="Actual vs. Predicted Average Demand",
-       x="Actual Demand", y="Predicted Demand") +
-  theme_minimal()
-
-```
-
-
 # Cross Validation:
 
 ## Methodology
@@ -233,23 +219,15 @@ We then repeat this process, expanding the training set by one year and moving t
 
 ```{r Cross Validation Plots, eval=TRUE, echo=FALSE, fig.height=5, fig.width=7, message=FALSE, warning=FALSE}
 
+# Plot cross validation predictions vs actual demand 
 p2 <- ggplot(data = crossvalid.final, aes(x = observed, y = predictions, colour = as.factor(test_set))) +
-  
   geom_point() +
-  
   geom_abline(slope = 1, intercept = 0, color = "black") +
-  
   labs(title = "Figure 9: Predicted vs Actual Demand",
-       
        x = "Actual Demand",
-       
        y = "Predicted Demand") +
-  
   scale_colour_discrete(name = "Test Set") +
-  
   theme(text = element_text(size = 16))
-
-
 p2
 
 ```
@@ -272,7 +250,7 @@ where $\epsilon_i \overset{\mathrm{iid}}\sim \mathcal{N}(0, \sigma^2)$.
 
 ```{r Other RMSE Table, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 
-
+# Table with scores for final model, baseline model m1 and complex model m2 
 cv.other.scores <- bind_rows(cv.scores.final, cv.scores.m1, cv.scores.m2) %>%
                             mutate(Model = c("$M_F$", "$M_{B}$", "$M_{C}$")) %>%
                             select(Model, everything())%>%
@@ -282,7 +260,6 @@ cv.other.scores <- bind_rows(cv.scores.final, cv.scores.m1, cv.scores.m2) %>%
                             )
 
 # Print the table
-
 kable(cv.other.scores, caption = "Table 3: Predictive Scores for Final, Baseline & Complex Model")
 
 ```
@@ -293,7 +270,8 @@ Each  predictive score for the final model is lower for $M_F$ than $M_B$, sugges
 To see that the final model is not overfitting, observe that the fitted RMSE based on the full dataset, is greater than the Cross Validation RMSE.
 
 ```{r, Assessing Overfitting, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
-# Create the data frame
+
+# Comparison of RMSE for model fitted on full dataset vs cross validation 
 rmse.values <- c("Fitted RMSE" = scores.final$RMSE, "Cross Validation RMSE" = cv.scores.final$RMSE)
 
 # Convert to a data frame and transpose
@@ -302,7 +280,6 @@ RMSE.data <- as.data.frame(t(rmse.values))
 
 # Print the table
 kable(RMSE.data, caption = "Table 4: How the model performs on trained data vs new data")
-
 ```
 
 This is unusual however could be explained due to the averaging over the 14 test sets. Also note the difference is minor relative to the scale of the data, indicating that the model performs consistently on both training and new data. 
