@@ -68,7 +68,6 @@ processed.data <- data %>%
   ) %>%
   ungroup()
 
-
 # -------------------------- Define Model & Formula  ---------------------------
 
 m.final <- lm(demand_gross ~ TE + solar_sarah + factor(WeekdayNum) + I(DSN^2) +
