@@ -42,7 +42,7 @@ source("code.R")
 
 # Executive Summary
 
-The main aim of this study is to predict average daily electricity demand to enable NESO to ensure a reliable supply. Forecasting is performed using an ordinary least squares linear regression model. This is selected by identifying key temporal and weather based predictors as well as considering important metrics such as $R^2$ and AIC. The model is then evaluated for it’s practicality and predictive ability using cross validation. We ultimately conclude, the model accurately predicts average daily demand while remaining simple and practical.
+The main aim of this study is to predict average daily electricity demand to enable NESO to ensure a reliable supply. Forecasting is performed using an ordinary least squares linear regression model. This is selected by identifying key temporal and weather based predictors as well as considering important metrics such as $R^2$ and AIC. The model is then evaluated for it’s practicality and predictive ability using cross validation. We ultimately conclude, the model predicts average daily demand accurately while remaining simple and practical.
 
 # Data Analysis and Exploration
 
@@ -68,7 +68,7 @@ wind_plot <- ggplot(processed.data, aes(x=wind_merra1, y=demand_gross)) +
   geom_smooth(method="lm", color="red") +
   labs(title="Average Demand vs Wind Capacity", x="Wind Capacity Factor", y="Average Demand (MW)",
        caption = "Figure 1: Wind generation showed no clear correlation with demand.") +
-  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20, hjust = 0))  
 
 # Solar vs Demand
 solar_plot <- ggplot(processed.data, aes(x=solar_sarah, y=demand_gross)) +
@@ -76,7 +76,7 @@ solar_plot <- ggplot(processed.data, aes(x=solar_sarah, y=demand_gross)) +
   geom_smooth(method="lm", color="red") +
   labs(title="Average Demand vs Solar Capacity", x="Solar Capacity Factor", y="Average Demand (MW)",
        caption="Figure 2: Solar generation exhibits an inverse relationship ") +
-  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20, hjust = 0))
 
 # Temp vs Demand- shows negative correlation
 temp_plot <- ggplot(processed.data, aes(x=temp_merra1, y=demand_gross)) +
@@ -84,7 +84,7 @@ temp_plot <- ggplot(processed.data, aes(x=temp_merra1, y=demand_gross)) +
   geom_smooth(method="lm", color="red") +
   labs(title="Average Demand vs Temperature", x="Temperature (°C)", y="Average Demand (MW)",
        caption="Figure 3: Shows a negative correlation with demand as expected.") +
-  theme(text = element_text(size = 16), plot.caption = element_text(size = 20)) 
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20, hjust = 0)) 
 
 # TE vs Demand - shows negative correlation
 te_plot <- ggplot(processed.data, aes(x=TE, y=demand_gross)) +
@@ -100,7 +100,7 @@ to_plot <- ggplot(processed.data, aes(x=TO, y=demand_gross)) +
   geom_smooth(method="lm", color="red") +
   labs(title="Average Demand vs TO", x="TO (°C)", y="Average Demand (MW)",
        caption="Figure 5: Shows a negative correlation with demand as expected.") +
-  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20, hjust = 0))  
 
 # dsn vs Demand - shows negative correlation
 dsn_plot <- ggplot(processed.data, aes(x=DSN, y=demand_gross)) +
@@ -121,7 +121,7 @@ month_plot <- ggplot(processed.data, aes(x=factor(Month, levels = c(10, 11, 12, 
   theme_bw() +
   guides(fill=FALSE) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20, hjust = 0))  
 
 # Day of week
 day_plot <- ggplot(processed.data, aes(x=factor(WeekdayNum), y=demand_gross, fill=factor(WeekdayNum))) +
@@ -134,7 +134,7 @@ day_plot <- ggplot(processed.data, aes(x=factor(WeekdayNum), y=demand_gross, fil
   theme_bw() +
   guides(fill=FALSE) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  theme(text = element_text(size = 16), plot.caption = element_text(size = 20))  
+  theme(text = element_text(size = 16), plot.caption = element_text(size = 20, hjust = 0))  
 
 # Arrange in a grid
 (wind_plot + solar_plot) / (temp_plot + to_plot) / (te_plot + dsn_plot) /  (month_plot + day_plot)   
@@ -153,14 +153,14 @@ We fit an ordinary least-squares linear regression model: $$\mathbf{y} = X \bold
 
 ## Metrics
 
-Variable significance is assessed through hypothesis testing model parameters, where a high p-value indicates no statistically significant effect in the model. The $R^2$ metric measures the proportion of variance explained with models with a higher adjusted $R^2$ generally preferred, as this indicates that the model explains a higher proportion of the variability within the data. Predictive accuracy is assessed through root mean squared error (RMSE). It measures the average magnitude of the residuals, with lower values indicating that the model's predictions are closer to the observed data. The AIC is used to balance model fit with complexity by penalising the number of parameters included in the model. A model with lower AIC is preferred, as it explains the data well without including unnecessary parameters.
+Variable significance is assessed through hypothesis testing model parameters, where a high p-value indicates no statistically significant effect in the model. The $R^2$ metric measures the proportion of variance explained. Models with a higher adjusted $R^2$ are generally preferred, as this indicates that the model explains a higher proportion of the variability within the data. Predictive accuracy is assessed through root mean squared error (RMSE). It measures the average magnitude of the residuals, with lower values indicating that the model's predictions are closer to the observed data. The AIC is used to balance model fit with complexity by penalising the number of parameters included in the model. A model with lower AIC is preferred, as it explains the data well without including unnecessary parameters.
 
 ## Model selection
 
 Based on the exploratory analysis, the final model was selected to capture key predictors and account for non-linearities and interactions while balancing simplicity:
 
 \begin{eqnarray*}
- M_F:  y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i  + \beta_7 \, \text{DSN_i}^2\text{:month_i} + \epsilon_i
+ M_F:  y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i  + \beta_7 \, \text{DSN}^2\text{:month}_i + \epsilon_i
 \end{eqnarray*}
 where $\epsilon_i \overset{\mathrm{iid}}\sim \mathcal{N}(0, \sigma^2)$.
 
@@ -173,7 +173,7 @@ names <- c("Model with temp", "Model with TO", "Model with TE")
 # creating the comparison table
 comparison_df <- comparison(formulas, names, processed.data)
 colnames(comparison_df) <- c("Model", "$R^2$", "Adjusted $R^2$", "RMSE", "AIC")
-kable(comparison_df, caption = "Model Performance Comparison")
+kable(comparison_df, caption = "Table 1: Model Performance Comparison")
 ```
 
 The remaining variables were included due to trends seen in exploratory analysis and as they are statistically significant, mostly with $p<0.01$.
@@ -184,7 +184,7 @@ The remaining variables were included due to trends seen in exploratory analysis
 coef_table <- summary(m.final)$coefficients
 
 # Create a nice clean table
-kable(coef_table, digits = 3, caption = "Table 1: Regression Results") 
+kable(coef_table, digits = 3, caption = "Table 2: Regression Results") 
 ```
 
 ## Model Evaluation
@@ -239,13 +239,13 @@ p2 <- ggplot(data = crossvalid.final, aes(x = observed, y = predictions, colour 
   
   geom_abline(slope = 1, intercept = 0, color = "black") +
   
-  labs(title = "Figure 2: Predicted vs Actual Demand",
+  labs(title = "Figure 9: Predicted vs Actual Demand",
        
        x = "Actual Demand",
        
        y = "Predicted Demand") +
   
-  scale_colour_discrete(name = "Training Set") +
+  scale_colour_discrete(name = "Test Set") +
   
   theme(text = element_text(size = 16))
 
@@ -254,13 +254,27 @@ p2
 
 ```
 
-Using cross validation we find the following predictive scores for our final model as well as a basic model and more complex model:
+
+Table 3 presents the predictive scores from the cross validation for our final model and both a basic model,
+
+
+$$
+M_B: y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{wind}_i + \beta_6 \text{temp}_i + \epsilon_i
+$$
+
+and a more complex model, 
+
+$$
+M_C: y_i = \beta_0 + \beta_1 \text{solar}_i + \beta_2 \text{wdaynumber}_i + \beta_3 \text{month}_i + \beta_4 \text{year}_i + \beta_5 \text{DSN}^2_i + \beta_6 \text{TE}_i + \\ \beta_7 \text{TE:solar}_i + \beta_7 \text{TE:month}_i + \beta_8 \text{solar:month}_i + \beta_9 \text{wdaynumber:month}_i + \beta_9 \text{DSN}^2\text{:month}_i + \epsilon_i
+$$
+where $\epsilon_i \overset{\mathrm{iid}}\sim \mathcal{N}(0, \sigma^2)$.
+
 
 ```{r Other RMSE Table, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
 
 
-cv.other.scores <- bind_rows(cv.scores.final, cv.scores.m1) %>%
-                            mutate(Model = c("$M_F$", "$M_{B}$")) %>%
+cv.other.scores <- bind_rows(cv.scores.final, cv.scores.m1, cv.scores.m2) %>%
+                            mutate(Model = c("$M_F$", "$M_{B}$", "$M_{C}$")) %>%
                             select(Model, everything())%>%
                             rename(
                               "Mean Dawid Sebastiani Score" = MDS,
@@ -268,7 +282,8 @@ cv.other.scores <- bind_rows(cv.scores.final, cv.scores.m1) %>%
                             )
 
 # Print the table
-kable(cv.other.scores, caption = "Predictive Scores for Final and Baseline Model")
+
+kable(cv.other.scores, caption = "Table 3: Predictive Scores for Final, Baseline & Complex Model")
 
 ```
 
@@ -286,7 +301,7 @@ RMSE.data <- as.data.frame(t(rmse.values))
 
 
 # Print the table
-kable(RMSE.data, caption = "How the model performs on trained data vs new data")
+kable(RMSE.data, caption = "Table 4: How the model performs on trained data vs new data")
 
 ```
 
@@ -295,9 +310,9 @@ To see that the final model is not overfitting observe that the fitted RMSE is g
 # Limitations
 Next consider limitations to our method and model: 
 
-By assuming the known year effect from the full model, we leak information about the test year into the predictions. We still choose this method for two reasons: Firstly, it still minimises the disruption to the chronological structure of the data. Secondly, expanding the training set at each step, incorporates more historical data helping the model capture long-term, recurring monthly and weekly trends more effectively.
+By assuming the known year effect from the full model, we leak information about the test year into the predictions. We still choose this method for two reasons: firstly, it still minimises the disruption to the chronological structure of the data. Secondly, expanding the training set at each step, incorporates more historical data helping the model capture long-term, recurring monthly and weekly trends more effectively.
 
-Secondly consider the observed vs predicted values from our cross validation  in Figure 2. While the points lie scattered around the 
+Secondly consider the observed vs predicted values from our cross validation  in Figure 9. While the points lie scattered around the 
 $y=x$ line indicating accurate predictions, a  few points lie above the line. However these occur at lower demand levels and since NESO prioritises accuracy at higher demand levels where shortfalls are more likely to occur, the model remains well-suited for its purpose. 
 
 
